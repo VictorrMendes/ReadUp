@@ -13,7 +13,7 @@ readup/
 ## Rodando
 
 ```sh
-cp .env.example .env   # defina POSTGRES_PASSWORD (só letras e números)
+cp .env.example .env   # defina POSTGRES_PASSWORD (só letras e números) e JWT_SECRET
 docker compose up -d --build
 curl http://localhost:8000/health   # {"status":"ok"}
 ```
@@ -26,7 +26,7 @@ Com o compose no ar:
 
 ```sh
 cd backend
-DATABASE_URL=postgresql+psycopg://readup:<senha>@127.0.0.1:5433/readup uv run pytest
+DATABASE_URL=postgresql+psycopg://readup:<senha>@127.0.0.1:5433/readup JWT_SECRET=<do .env> uv run pytest
 uv run ruff check . && uv run mypy app tests
 ```
 
@@ -35,4 +35,14 @@ uv run ruff check . && uv run mypy app tests
 ```sh
 cd backend
 DATABASE_URL=... uv run alembic revision --autogenerate -m "..."
+```
+
+## Mobile
+
+```sh
+cp mobile/.env.example mobile/.env   # EXPO_PUBLIC_API_URL com o IP da máquina na LAN
+cd mobile
+npm install
+npx expo start
+npm test
 ```
