@@ -1,7 +1,8 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 
+import { AppText } from "@/components/app-text";
 import { useCurrentUser } from "@/lib/auth";
-import { colors, fontSize, spacing } from "@/theme";
+import { colors, spacing } from "@/theme";
 
 export default function HomeScreen() {
   const { user, error } = useCurrentUser();
@@ -9,9 +10,9 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       {error ? (
-        <Text style={styles.error}>{error}</Text>
+        <AppText color="error">{error}</AppText>
       ) : user ? (
-        <Text style={styles.greeting}>Olá, {user.name}</Text>
+        <AppText variant="h1">Olá, {user.name}</AppText>
       ) : (
         <ActivityIndicator color={colors.primary500} />
       )}
@@ -21,6 +22,4 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: spacing.xl, backgroundColor: colors.background },
-  greeting: { fontSize: fontSize.h1, fontWeight: "700", color: colors.textPrimary },
-  error: { fontSize: fontSize.body, color: colors.error },
 });

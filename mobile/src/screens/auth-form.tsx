@@ -1,20 +1,14 @@
 import { Link } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppText } from "@/components/app-text";
+import { Button } from "@/components/button";
+import { TextInput } from "@/components/text-input";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { colors, fontSize, radius, spacing, touchTarget } from "@/theme";
+import { colors, spacing } from "@/theme";
 
 // Tela única para login e cadastro: os dois fluxos só diferem no campo nome e na ação.
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
@@ -54,16 +48,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>{isRegister ? "Criar conta" : "Entrar"}</Text>
-          <Text style={styles.subtitle}>
+          <AppText variant="h1">{isRegister ? "Criar conta" : "Entrar"}</AppText>
+          <AppText color="textSecondary" style={styles.subtitle}>
             {isRegister ? "Comece seu hábito diário de leitura." : "Continue sua leitura em inglês."}
-          </Text>
+          </AppText>
 
           {isRegister && (
             <TextInput
-              style={styles.input}
-              placeholder="Nome"
-              placeholderTextColor={colors.textSecondary}
+              label="Nome"
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
@@ -73,9 +65,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             />
           )}
           <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.textSecondary}
+            label="Email"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -85,9 +75,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             textContentType="emailAddress"
           />
           <TextInput
-            style={styles.input}
-            placeholder="Senha (mínimo 8 caracteres)"
-            placeholderTextColor={colors.textSecondary}
+            label="Senha"
+            placeholder="Mínimo 8 caracteres"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -99,32 +88,25 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             onSubmitEditing={submit}
           />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error && (
+            <AppText variant="small" color="error" accessibilityLiveRegion="polite">
+              {error}
+            </AppText>
+          )}
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-              submitting && styles.buttonDisabled,
-            ]}
+          <Button
+            title={isRegister ? "Criar conta" : "Entrar"}
             onPress={submit}
-            disabled={submitting}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: submitting, busy: submitting }}
-          >
-            {submitting ? (
-              <ActivityIndicator color={colors.surface} />
-            ) : (
-              <Text style={styles.buttonText}>{isRegister ? "Criar conta" : "Entrar"}</Text>
-            )}
-          </Pressable>
+            loading={submitting}
+            style={styles.submit}
+          />
 
           <Link href={isRegister ? "/login" : "/register"} replace asChild>
-            <Pressable style={styles.link} accessibilityRole="link">
-              <Text style={styles.linkText}>
-                {isRegister ? "Já tem conta? Entrar" : "Não tem conta? Criar conta"}
-              </Text>
-            </Pressable>
+            <Button
+              variant="ghost"
+              accessibilityRole="link"
+              title={isRegister ? "Já tem conta? Entrar" : "Não tem conta? Criar conta"}
+            />
           </Link>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -135,32 +117,6 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, justifyContent: "center", padding: spacing.xl, gap: spacing.md },
-  title: { fontSize: fontSize.h1, fontWeight: "700", color: colors.textPrimary },
-  subtitle: { fontSize: fontSize.body, color: colors.textSecondary, marginBottom: spacing.md },
-  input: {
-    minHeight: touchTarget,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.body,
-    color: colors.textPrimary,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-  },
-  error: { fontSize: fontSize.small, color: colors.error },
-  button: {
-    minHeight: touchTarget,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary500,
-  },
-  buttonPressed: { backgroundColor: colors.primary600 },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { fontSize: fontSize.body, fontWeight: "600", color: colors.surface },
-  link: { minHeight: touchTarget, alignItems: "center", justifyContent: "center" },
-  linkText: { fontSize: fontSize.body, color: colors.primary500, fontWeight: "600" },
+  subtitle: { marginBottom: spacing.md },
+  submit: { marginTop: spacing.sm },
 });

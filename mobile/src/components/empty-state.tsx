@@ -1,8 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { ComponentProps } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
-import { colors, fontSize, spacing } from "@/theme";
+import { AppText } from "@/components/app-text";
+import { colors, spacing } from "@/theme";
 
 type Props = {
   icon: ComponentProps<typeof Ionicons>["name"];
@@ -14,8 +15,12 @@ export function EmptyState({ icon, title, message }: Props) {
   return (
     <View style={styles.container}>
       <Ionicons name={icon} size={48} color={colors.textSecondary} />
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <AppText variant="h3" style={styles.title}>
+        {title}
+      </AppText>
+      <AppText color="textSecondary" style={styles.center}>
+        {message}
+      </AppText>
     </View>
   );
 }
@@ -29,12 +34,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.background,
   },
-  title: {
-    fontSize: fontSize.h3,
-    fontWeight: "600",
-    color: colors.textPrimary,
-    textAlign: "center",
-    marginTop: spacing.sm,
-  },
-  message: { fontSize: fontSize.body, color: colors.textSecondary, textAlign: "center" },
+  title: { textAlign: "center", marginTop: spacing.sm },
+  center: { textAlign: "center" },
 });
