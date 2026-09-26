@@ -11,3 +11,9 @@ test.each([
 
   expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now });
 });
+
+test("size thin usa a barra fina", async () => {
+  await render(<ProgressBar value={0.5} size="thin" />);
+
+  expect(screen.getByRole("progressbar")).toHaveStyle({ height: 4 });
+});

@@ -2,14 +2,14 @@ import { StyleSheet, View } from "react-native";
 
 import { colors, radius } from "@/theme";
 
-type Props = { value: number; tone?: "primary" | "success" };
+type Props = { value: number; tone?: "primary" | "success"; size?: "default" | "thin" };
 
-export function ProgressBar({ value, tone = "primary" }: Props) {
+export function ProgressBar({ value, tone = "primary", size = "default" }: Props) {
   const percent = Math.round(Math.min(1, Math.max(0, value)) * 100);
 
   return (
     <View
-      style={styles.track}
+      style={[styles.track, size === "thin" && styles.thin]}
       accessible
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: percent }}
@@ -17,6 +17,7 @@ export function ProgressBar({ value, tone = "primary" }: Props) {
       <View
         style={[
           styles.fill,
+          size === "thin" && styles.thin,
           {
             width: `${percent}%`,
             backgroundColor: tone === "success" ? colors.success500 : colors.primary500,
@@ -30,4 +31,6 @@ export function ProgressBar({ value, tone = "primary" }: Props) {
 const styles = StyleSheet.create({
   track: { height: 8, borderRadius: radius.sm, backgroundColor: colors.border, overflow: "hidden" },
   fill: { height: "100%", borderRadius: radius.sm },
+  // leitor: barra discreta; raio = metade da altura, como no default
+  thin: { height: 4, borderRadius: 2 },
 });

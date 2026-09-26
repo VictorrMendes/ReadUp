@@ -16,6 +16,7 @@ readup/
 cp .env.example .env   # defina POSTGRES_PASSWORD (só letras e números) e JWT_SECRET
 docker compose up -d --build
 curl http://localhost:8000/health   # {"status":"ok"}
+docker compose exec api python -m app.articles.seed   # textos iniciais (idempotente)
 ```
 
 O PostgreSQL fica acessível apenas em `127.0.0.1:5433`.

@@ -28,6 +28,7 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={!!token}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="article/[id]" />
       </Stack.Protected>
       <Stack.Protected guard={!token}>
         <Stack.Screen name="login" />
