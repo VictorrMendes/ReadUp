@@ -1,0 +1,17 @@
+.env
+__pycache__/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+storage/pdfs/*
+!storage/pdfs/.gitkeep
+docs
+.claude
+.codex
+.context
+.remember
+.mcp.json
+AGENTS.md
+CLAUDE.md
+skills-lock.json

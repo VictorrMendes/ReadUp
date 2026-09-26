@@ -1,0 +1,35 @@
+[project]
+name = "readup-backend"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.20.0",
+    "argon2-cffi>=25.1.0",
+    "fastapi>=0.141.1",
+    "psycopg[binary]>=3.3.6",
+    "pydantic[email]>=2.13.5",
+    "pyjwt>=2.15.0",
+    "sqlalchemy>=2.1.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+# a pasta local alembic/ faria o ruff tratar o pacote como first-party
+known-third-party = ["alembic"]
+
+[tool.mypy]
+strict = true
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
