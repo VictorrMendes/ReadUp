@@ -5,7 +5,14 @@ import type { ProgressResult } from "@/lib/reading";
 
 import { startReadingSession } from "./use-reading-session";
 
-const OK: ProgressResult = { progress: 0, words_read: 0, words_credited: 0, completed: false };
+const OK: ProgressResult = {
+  progress: 0,
+  words_read: 0,
+  words_credited: 0,
+  completed: false,
+  xp_gained: 0,
+  goal_met: false,
+};
 
 let appState: AppStateStatus = "active";
 let onAppStateChange: (state: AppStateStatus) => void = () => {};
@@ -38,7 +45,7 @@ test("abre a sessão com 0 s ao iniciar e envia após 15 s com o maior progresso
   const { session, send, onResult } = start();
   await advance(0);
   expect(send).toHaveBeenCalledWith(0, 0);
-  expect(onResult).toHaveBeenCalledWith(OK);
+  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, goalMet: false });
 
   session.report(40.7);
   session.report(25); // voltar a rolagem não reduz
@@ -119,4 +126,34 @@ test("sem tempo nem avanço, só o envio de abertura", async () => {
 
   expect(send).toHaveBeenCalledTimes(1);
   expect(send).toHaveBeenCalledWith(0, 0);
+});
+
+test("soma o xp_gained dos envios e marca a meta cumprida durante a sessão", async () => {
+  const send = jest
+    .fn()
+    .mockResolvedValueOnce(OK) // abertura
+    .mockResolvedValueOnce({ ...OK, xp_gained: 9 })
+    .mockResolvedValueOnce({ ...OK, xp_gained: 56, goal_met: true })
+    .mockResolvedValue({ ...OK, xp_gained: 26, goal_met: true, completed: true });
+  const { session, onResult } = start(send);
+
+  await advance(15);
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, goalMet: false });
+  await advance(15);
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, goalMet: true });
+  await advance(15);
+
+  expect(send).toHaveBeenCalledTimes(4);
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, goalMet: true });
+  session.stop();
+});
+
+test("meta já cumprida antes da sessão não conta como cumprida nela", async () => {
+  const send = jest.fn().mockResolvedValue({ ...OK, xp_gained: 3, goal_met: true });
+  const { session, onResult } = start(send);
+
+  await advance(15);
+
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, goalMet: false });
+  session.stop();
 });

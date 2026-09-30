@@ -12,6 +12,8 @@ export type ProgressResult = {
   words_read: number;
   words_credited: number;
   completed: boolean;
+  xp_gained: number;
+  goal_met: boolean;
 };
 
 export function saveProgress(

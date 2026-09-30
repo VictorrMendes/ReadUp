@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKey, Integer
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, ForeignKey, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -23,3 +23,5 @@ class DailyStats(Base):
     seconds_read: Mapped[int] = mapped_column(Integer, server_default="0")
     xp: Mapped[int] = mapped_column(Integer, server_default="0")
     texts_completed: Mapped[int] = mapped_column(Integer, server_default="0")
+    # marca do bônus da meta: uma vez por dia, mesmo que a meta mude depois
+    goal_met: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))

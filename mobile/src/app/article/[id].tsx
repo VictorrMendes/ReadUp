@@ -1,7 +1,11 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Animated,
+  Easing,
   ScrollView,
   StyleSheet,
   View,
@@ -15,12 +19,14 @@ import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { IconButton } from "@/components/icon-button";
 import { ProgressBar } from "@/components/progress-bar";
+import { XPBadge } from "@/components/xp-badge";
 import { ApiError } from "@/lib/api";
 import { getArticle, type ArticleDetail } from "@/lib/articles";
 import { useAuth } from "@/lib/auth";
+import { formatNumber } from "@/lib/format";
 import { scrollProgress } from "@/lib/reading";
-import { useReadingSession } from "@/lib/use-reading-session";
-import { colors, spacing } from "@/theme";
+import { useReadingSession, type SessionGains } from "@/lib/use-reading-session";
+import { colors, fontFamily, spacing } from "@/theme";
 
 const READING_MAX_WIDTH = 680;
 
@@ -28,6 +34,75 @@ function goBack() {
   // aberto por deep link não há histórico: volta para as abas
   if (router.canGoBack()) router.back();
   else router.replace("/");
+}
+
+// Card do fim da leitura: único lugar do leitor onde a gamificação aparece. Entra com fade e
+// leve subida, exceto com "reduzir movimento" ligado.
+function DoneCard({ wordCount, gains }: { wordCount: number; gains: SessionGains }) {
+  const [entrance] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .catch(() => false)
+      .then((reduceMotion) => {
+        if (!active) return;
+        if (reduceMotion) entrance.setValue(1);
+        else
+          Animated.timing(entrance, {
+            toValue: 1,
+            duration: 250,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }).start();
+      });
+    return () => {
+      active = false;
+    };
+  }, [entrance]);
+
+  // texto já concluído antes (reaberto) não ganha XP: nada a anunciar
+  useEffect(() => {
+    if (gains.xp > 0)
+      AccessibilityInfo.announceForAccessibility(
+        `Leitura concluída. Mais ${formatNumber(gains.xp)} pontos de experiência`,
+      );
+  }, [gains.xp]);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: entrance,
+        transform: [
+          { translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [spacing.md, 0] }) },
+        ],
+      }}
+    >
+      <Card style={styles.done}>
+        <AppText variant="h3">Leitura concluída</AppText>
+        <AppText color="textSecondary">{formatNumber(wordCount)} palavras lidas</AppText>
+        {gains.xp > 0 && (
+          <View style={styles.doneRow}>
+            <XPBadge xp={gains.xp} gain />
+          </View>
+        )}
+        {gains.goalMet && (
+          <View style={styles.doneRow}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.success600} />
+            <AppText variant="small" style={styles.semibold}>
+              Meta de hoje cumprida
+            </AppText>
+          </View>
+        )}
+        <Button
+          variant="secondary"
+          title="Voltar ao Explorar"
+          onPress={() => router.navigate("/explore")}
+          style={styles.doneAction}
+        />
+      </Card>
+    </Animated.View>
+  );
 }
 
 export default function ArticleScreen() {
@@ -41,7 +116,7 @@ export default function ArticleScreen() {
   const [progress, setProgress] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scroll = useRef({ offset: 0, content: 0, viewport: 0, resumed: false });
-  const { result, reportProgress } = useReadingSession({
+  const { result, gains, reportProgress } = useReadingSession({
     token,
     articleId,
     enabled: article !== null,
@@ -171,16 +246,7 @@ export default function ArticleScreen() {
               </AppText>
             ))}
             {(article.completed || result?.completed) && (
-              <Card style={styles.done}>
-                <AppText variant="h3">Leitura concluída</AppText>
-                <AppText color="textSecondary">{article.word_count} palavras lidas</AppText>
-                <Button
-                  variant="secondary"
-                  title="Voltar ao Explorar"
-                  onPress={() => router.navigate("/explore")}
-                  style={styles.doneAction}
-                />
-              </Card>
+              <DoneCard wordCount={article.word_count} gains={gains} />
             )}
           </View>
         </ScrollView>
@@ -217,5 +283,7 @@ const styles = StyleSheet.create({
   meta: { marginTop: spacing.sm, marginBottom: spacing.xl },
   paragraph: { marginBottom: spacing.lg },
   done: { gap: spacing.xs, marginTop: spacing.lg },
+  doneRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.xs },
+  semibold: { fontFamily: fontFamily.semibold },
   doneAction: { marginTop: spacing.md },
 });

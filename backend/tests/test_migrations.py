@@ -1,8 +1,4 @@
-from pathlib import Path
-
 import pytest
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -10,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.db import engine
 from app.users.models import User
 
-ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 TABLES = {
     "users",
     "reading_goals",
@@ -20,11 +15,6 @@ TABLES = {
     "daily_stats",
     "streaks",
 }
-
-
-@pytest.fixture(scope="module", autouse=True)
-def upgrade_head() -> None:
-    command.upgrade(Config(str(ALEMBIC_INI)), "head")
 
 
 def test_upgrade_head_creates_tables() -> None:

@@ -7,10 +7,13 @@ import { saveProgress, type ProgressResult } from "@/lib/reading";
 export const SEND_EVERY_SECONDS = 15;
 const MAX_SECONDS_PER_SEND = 120; // limite do backend
 
+// Acumulado da sessão: XP somado das respostas e se a meta do dia foi cumprida durante ela.
+export type SessionGains = { xp: number; goalMet: boolean };
+
 type SessionOptions = {
   send: (progress: number, seconds: number) => Promise<ProgressResult>;
   initialProgress: number;
-  onResult: (result: ProgressResult) => void;
+  onResult: (result: ProgressResult, gains: SessionGains) => void;
   onUnauthorized: () => void;
 };
 
@@ -32,6 +35,9 @@ export function startReadingSession({
   let pendingSeconds = 0;
   let secondsSinceSend = 0;
   let inFlight = false;
+  let xp = 0;
+  // estado da meta na primeira resposta (abertura): só conta como cumprida na sessão se virou depois
+  let goalMetBefore: boolean | null = null;
 
   // open: envio de abertura (0 s), mesmo sem nada novo a enviar
   async function flush(open = false) {
@@ -43,7 +49,10 @@ export function startReadingSession({
     pendingSeconds -= seconds;
     secondsSinceSend = 0;
     try {
-      onResult(await send(progress, seconds));
+      const result = await send(progress, seconds);
+      xp += result.xp_gained;
+      goalMetBefore ??= result.goal_met;
+      onResult(result, { xp, goalMet: result.goal_met && !goalMetBefore });
       sentProgress = Math.max(sentProgress, progress);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) onUnauthorized();
@@ -94,6 +103,7 @@ export function useReadingSession({
   onUnauthorized: () => void;
 }) {
   const [result, setResult] = useState<ProgressResult | null>(null);
+  const [gains, setGains] = useState<SessionGains>({ xp: 0, goalMet: false });
   const session = useRef<ReadingSession | null>(null);
   // progresso reportado antes da sessão começar (ex.: onLayout de texto que cabe na tela)
   const reportedEarly = useRef(0);
@@ -104,7 +114,10 @@ export function useReadingSession({
       send: (progress, seconds) =>
         saveProgress(token, { article_id: articleId, progress, seconds }),
       initialProgress,
-      onResult: setResult,
+      onResult: (latest, sessionGains) => {
+        setResult(latest);
+        setGains(sessionGains);
+      },
       onUnauthorized,
     });
     current.report(reportedEarly.current);
@@ -120,5 +133,5 @@ export function useReadingSession({
     session.current?.report(percent);
   }, []);
 
-  return { result, reportProgress };
+  return { result, gains, reportProgress };
 }
