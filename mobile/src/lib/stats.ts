@@ -9,8 +9,19 @@ export type StatsSummary = {
   streak_current: number; // efetiva: 0 se quebrou
   streak_longest: number;
   streak_active_today: boolean;
+  minutes_total: number;
+  words_saved_total: number;
+  books_started: number;
+  books_completed: number;
 };
 
 export function getSummary(token: string): Promise<StatsSummary> {
   return apiFetch<StatsSummary>("/stats/summary", { token });
+}
+
+export type DailyStat = { day: string; words_read: number; xp: number; goal_met: boolean };
+
+// últimos `days` dias locais, do mais antigo para hoje (dias sem leitura vêm zerados)
+export function getDaily(token: string, days = 7): Promise<DailyStat[]> {
+  return apiFetch<DailyStat[]>(`/stats/daily?days=${days}`, { token });
 }

@@ -7,3 +7,13 @@ export function formatNumber(value: number): string {
 export function formatDays(days: number): string {
   return `${formatNumber(days)} ${days === 1 ? "dia" : "dias"}`;
 }
+
+const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+// "2026-03-12" -> { name: "Quinta", letter: "Q" }. A data é um dia do calendário (sem hora):
+// lida em UTC para o fuso do aparelho não trocar o dia.
+export function weekday(isoDate: string): { name: string; letter: string } {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const name = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+  return { name, letter: name[0] };
+}

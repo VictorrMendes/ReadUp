@@ -1,5 +1,5 @@
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
@@ -7,11 +7,15 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from app.articles.models import Article
+from app.books.models import Book
 from app.gamification.models import Streak
 from app.gamification.streak import effective_streak, next_streak
 from app.gamification.xp import DAILY_GOAL_XP, completion_xp, xp_for_words
 from app.goals.service import active_target
+from app.reading.models import ReadingProgress
 from app.stats.models import DailyStats
+from app.vocabulary.models import SavedWord
 
 # ponytail: fuso único; fuso por usuário quando houver usuários fora do Brasil
 APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "America/Sao_Paulo"))
@@ -142,24 +146,103 @@ class Summary(StreakStatus):
     words_today: int
     words_total: int
     texts_completed_total: int
+    minutes_total: int  # soma dos segundos de leitura / 60, para baixo
+    words_saved_total: int
+    books_started: int  # livros com algum capítulo com progresso > 0
+    books_completed: int  # livros com todos os capítulos concluídos
+
+
+def _books_progress(session: Session, user_id: int) -> tuple[int, int]:
+    """(iniciados, concluídos) dos livros do usuário, numa query (agregado por livro)."""
+    per_book = (
+        select(
+            func.bool_or(ReadingProgress.progress > 0).label("started"),
+            (func.count(Article.id) == func.count(ReadingProgress.completed_at)).label("completed"),
+        )
+        .select_from(Book)
+        .join(Article, Article.book_id == Book.id)
+        .outerjoin(
+            ReadingProgress,
+            (ReadingProgress.article_id == Article.id) & (ReadingProgress.user_id == user_id),
+        )
+        .where(Book.user_id == user_id)
+        .group_by(Book.id)
+        .subquery()
+    )
+    started, completed = session.execute(
+        select(
+            func.count().filter(per_book.c.started.is_(True)),
+            func.count().filter(per_book.c.completed),
+        )
+    ).one()
+    return started, completed
 
 
 def summary(session: Session, user_id: int) -> Summary:
     today = DailyStats.day == local_today()
-    xp_total, xp_today, words_today, words_total, texts_completed_total = session.execute(
+    saved = (
+        select(func.count()).select_from(SavedWord).where(SavedWord.user_id == user_id)
+    ).scalar_subquery()
+    (
+        xp_total,
+        xp_today,
+        words_today,
+        words_total,
+        texts_completed_total,
+        seconds_total,
+        words_saved_total,
+    ) = session.execute(
         select(
             func.coalesce(func.sum(DailyStats.xp), 0),
             func.coalesce(func.sum(DailyStats.xp).filter(today), 0),
             func.coalesce(func.sum(DailyStats.words_read).filter(today), 0),
             func.coalesce(func.sum(DailyStats.words_read), 0),
             func.coalesce(func.sum(DailyStats.texts_completed), 0),
+            func.coalesce(func.sum(DailyStats.seconds_read), 0),
+            saved,
         ).where(DailyStats.user_id == user_id)
     ).one()
+    books_started, books_completed = _books_progress(session, user_id)
     return Summary(
         xp_total=xp_total,
         xp_today=xp_today,
         words_today=words_today,
         words_total=words_total,
         texts_completed_total=texts_completed_total,
+        minutes_total=seconds_total // 60,
+        words_saved_total=words_saved_total,
+        books_started=books_started,
+        books_completed=books_completed,
         **streak_status(session, user_id).model_dump(),
     )
+
+
+class DailyPoint(BaseModel):
+    day: date
+    words_read: int
+    xp: int
+    goal_met: bool
+
+
+def daily(session: Session, user_id: int, days: int) -> list[DailyPoint]:
+    """Últimos `days` dias locais, do mais antigo para hoje; dia sem atividade vem zerado."""
+    today = local_today()
+    first = today - timedelta(days=days - 1)
+    rows = {
+        row.day: row
+        for row in session.execute(
+            select(DailyStats.day, DailyStats.words_read, DailyStats.xp, DailyStats.goal_met).where(
+                DailyStats.user_id == user_id, DailyStats.day.between(first, today)
+            )
+        )
+    }
+    points = []
+    for offset in range(days):
+        day = first + timedelta(days=offset)
+        row = rows.get(day)
+        points.append(
+            DailyPoint(day=day, words_read=row.words_read, xp=row.xp, goal_met=row.goal_met)
+            if row
+            else DailyPoint(day=day, words_read=0, xp=0, goal_met=False)
+        )
+    return points

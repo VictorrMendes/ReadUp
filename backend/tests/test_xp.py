@@ -34,6 +34,10 @@ ZEROS = {
     "streak_current": 0,
     "streak_longest": 0,
     "streak_active_today": False,
+    "minutes_total": 0,
+    "words_saved_total": 0,
+    "books_started": 0,
+    "books_completed": 0,
 }
 
 # --- regra pura ---

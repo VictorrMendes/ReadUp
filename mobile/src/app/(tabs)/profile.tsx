@@ -1,28 +1,79 @@
-import { useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { Image, ScrollView, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { OptionList } from "@/components/option-list";
+import { Skeleton } from "@/components/skeleton";
+import { StatTile } from "@/components/stat-tile";
+import { WeekChart } from "@/components/week-chart";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { formatNumber } from "@/lib/format";
 import { GOAL_OPTIONS, LEVEL_OPTIONS, setGoal, setLevel } from "@/lib/preferences";
-import { colors, spacing } from "@/theme";
+import { getDaily, getSummary, type DailyStat, type StatsSummary } from "@/lib/stats";
+import { colors, compactFontScale, spacing } from "@/theme";
+
+const SAVED_FEEDBACK_MS = 2000;
+
+// "Ana Maria Souza" -> "AS"; "ana" -> "A"
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const letters = parts.length > 1 ? [parts[0], parts[parts.length - 1]] : parts;
+  return letters.map((part) => part[0].toUpperCase()).join("");
+}
+
+type Stats = { summary: StatsSummary; daily: DailyStat[] };
 
 export default function ProfileScreen() {
   const { token, user, signOut, refreshUser } = useAuth();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [statsError, setStatsError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // recarrega ao focar a aba: números da leitura recém-feita
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      let active = true;
+      Promise.all([getSummary(token), getDaily(token, 7)])
+        .then(([summary, daily]) => {
+          if (!active) return;
+          setStats({ summary, daily });
+          setStatsError(false);
+        })
+        .catch((e: unknown) => {
+          if (e instanceof ApiError && e.status === 401) void signOut();
+          else if (active) setStatsError(true);
+        });
+      return () => {
+        active = false;
+      };
+    }, [token, signOut]),
+  );
+
+  // "Salvo" some sozinho
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), SAVED_FEEDBACK_MS);
+    return () => clearTimeout(timer);
+  }, [saved]);
 
   // escolher uma opção já salva (PATCH nível / PUT meta) e atualiza o usuário do contexto
   async function save(change: (token: string) => Promise<unknown>) {
     if (!token) return;
     setSaving(true);
+    setSaved(false);
     setError(null);
     try {
       await change(token);
       await refreshUser();
+      setSaved(true);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return void signOut();
       setError(e instanceof ApiError ? e.detail : "Não foi possível salvar. Tente novamente.");
@@ -32,18 +83,95 @@ export default function ProfileScreen() {
   }
 
   if (!user) return null;
+  const summary = stats?.summary;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <Card style={styles.card}>
-        <AppText variant="h2">{user.name}</AppText>
-        <AppText color="textSecondary">{user.email}</AppText>
+      <Card style={styles.identity}>
+        <View style={styles.avatar} importantForAccessibility="no-hide-descendants">
+          <AppText variant="h3" color="primary600" maxFontSizeMultiplier={compactFontScale}>
+            {initials(user.name)}
+          </AppText>
+        </View>
+        <View style={styles.identityText}>
+          <AppText variant="h2" numberOfLines={1}>
+            {user.name}
+          </AppText>
+          <AppText color="textSecondary" numberOfLines={1}>
+            {user.email}
+          </AppText>
+        </View>
       </Card>
+
+      {statsError && !stats ? (
+        <AppText variant="small" color="textSecondary">
+          Não foi possível carregar suas estatísticas.
+        </AppText>
+      ) : !summary || !stats ? (
+        <View style={styles.section} accessible accessibilityLabel="Carregando estatísticas">
+          <Skeleton height={196} />
+          <Skeleton height={180} />
+        </View>
+      ) : (
+        <>
+          <View style={styles.grid}>
+            <View style={styles.gridRow}>
+              <StatTile
+                value={summary.streak_current}
+                label="dias de ofensiva"
+                icon={
+                  <Image
+                    source={
+                      summary.streak_active_today
+                        ? require("@/assets/images/streak.png")
+                        : require("@/assets/images/streak-inactive.png")
+                    }
+                    style={styles.streakIcon}
+                    accessibilityIgnoresInvertColors
+                    accessible={false}
+                  />
+                }
+              />
+              <StatTile value={summary.streak_longest} label="dias na maior ofensiva" />
+            </View>
+            <View style={styles.gridRow}>
+              <StatTile
+                value={summary.xp_total}
+                label="XP total"
+                accessibilityLabel={`${formatNumber(summary.xp_total)} pontos de experiência`}
+              />
+              <StatTile value={summary.words_total} label="palavras lidas" />
+            </View>
+            <View style={styles.gridRow}>
+              <StatTile value={summary.minutes_total} label="minutos de leitura" />
+              <StatTile value={summary.texts_completed_total} label="textos concluídos" />
+            </View>
+            <View style={styles.gridRow}>
+              <StatTile
+                value={`${formatNumber(summary.books_started)} / ${formatNumber(summary.books_completed)}`}
+                label="livros iniciados / concluídos"
+                accessibilityLabel={
+                  `${formatNumber(summary.books_started)} livros iniciados, ` +
+                  `${formatNumber(summary.books_completed)} concluídos`
+                }
+              />
+              <StatTile value={summary.words_saved_total} label="palavras salvas" />
+            </View>
+          </View>
+          <WeekChart days={stats.daily} />
+        </>
+      )}
 
       {error && (
         <AppText variant="small" color="errorText" accessibilityLiveRegion="polite">
           {error}
         </AppText>
+      )}
+      {saved && (
+        <View style={styles.saved} accessibilityLiveRegion="polite">
+          <Ionicons name="checkmark-circle" size={14} color={colors.success600} />
+          <AppText variant="caption">Salvo</AppText>
+        </View>
       )}
 
       <AppText variant="h3" accessibilityRole="header">
@@ -68,14 +196,30 @@ export default function ProfileScreen() {
         disabled={saving}
       />
 
-      <Button variant="secondary" title="Sair" onPress={signOut} style={styles.signOut} />
+      <Button variant="ghost" title="Sair" onPress={signOut} style={styles.signOut} />
     </ScrollView>
   );
 }
 
+const AVATAR_SIZE = 56;
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.xl, gap: spacing.md },
-  card: { gap: spacing.xs, marginBottom: spacing.md },
+  identity: { flexDirection: "row", alignItems: "center", gap: spacing.lg, marginBottom: spacing.sm },
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: colors.primary100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  identityText: { flex: 1, gap: spacing.xs },
+  section: { gap: spacing.md },
+  grid: { gap: spacing.md },
+  gridRow: { flexDirection: "row", gap: spacing.md },
+  streakIcon: { width: 20, height: 20 },
+  saved: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   signOut: { marginTop: spacing.xl },
 });
