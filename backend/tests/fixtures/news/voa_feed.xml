@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">     
+    <channel>      
+        <title>Science &amp; Technology - Voice of America</title>     
+        <link>https://learningenglish.voanews.com/z/1579</link>
+        <description>Learn English as you read and listen to a weekly show about developments in science, technology and medicine. Stories are written at the intermediate and upper-beginner level and are read one-third slower than regular VOA English. Free texts, MP3s &amp; PDFs.</description>
+        <image>
+            <url>https://learningenglish.voanews.com/Content/responsive/VOA/en-US-LEARN/img/logo.png</url>
+            <title>Science &amp; Technology - Voice of America</title>
+            <link>https://learningenglish.voanews.com/z/1579</link>
+        </image>
+        <language>en</language>
+        <copyright>2026 - VOA</copyright>   
+        <ttl>60</ttl>        
+        <lastBuildDate>Wed, 30 Sep 2026 17:24:38 +0000</lastBuildDate> 
+        <generator>Pangea CMS – VOA</generator>        
+        <atom:link href="https://learningenglish.voanews.com/api/zmg_pl-vomx-tpeymtm" rel="self" type="application/rss+xml" />
+    		<item>
+            <title>Wilbur and Orville Wright: The First Airplane</title>
+            <description>Wilbur and Orville Wright quietly developed a powered flying machine that proved heavier-than-air flight was possible more than 120 years ago. </description>
+            <link>https://learningenglish.voanews.com/a/wilbur-and-orville-wright-the-first-airplane/7998765.html</link> 
+            <guid>https://learningenglish.voanews.com/a/wilbur-and-orville-wright-the-first-airplane/7998765.html</guid>            
+            <pubDate>Mon, 17 Mar 2025 22:05:00 +0000</pubDate>
+            <category>All About America</category><category>Lessons of the Day</category><category>Science &amp; Technology</category><enclosure url="https://gdb.voanews.com/30e69ae7-4bf3-49d6-330f-08dd5c897904_w800_h450.jpg" length="0" type="image/jpeg"/>
+        </item>
+<item>
+            <title>Total Lunar Eclipse to Turn Moon Red</title>
+            <description>A total lunar eclipse is set to make the moon appear a color between red and orange across the Western Hemisphere. The best views will be Thursday night into Friday morning from places in North America and South America.</description>
+            <link>https://learningenglish.voanews.com/a/total-lunar-eclipse-to-turn-moon-red/8005741.html</link> 
+            <guid>https://learningenglish.voanews.com/a/total-lunar-eclipse-to-turn-moon-red/8005741.html</guid>            
+            <pubDate>Tue, 11 Mar 2025 22:00:00 +0000</pubDate>
+            <category>Science &amp; Technology</category><category>Lessons of the Day</category><enclosure url="https://gdb.voanews.com/975A1485-4382-4319-9B8D-342564FAD3B8_cx0_cy5_cw0_w800_h450.jpg" length="0" type="image/jpeg"/>
+        </item>
+<item>
+            <title>Barbara McClintock, Geneticist and Nobel Prize Winner </title>
+            <description></description>
+            <link>https://learningenglish.voanews.com/a/8010810.html</link> 
+            <guid>https://learningenglish.voanews.com/a/8010810.html</guid>            
+            <pubDate>Fri, 14 Mar 2025 16:28:15 +0000</pubDate>
+            <category>Science &amp; Technology</category><enclosure url="https://gdb.voanews.com/be96dad2-f54b-4a94-95fa-cbd20d55b2cd_w800_h450.jpg" length="0" type="image/jpeg"/>
+        </item>
+<item>
+            <title>[fora da allowlist] Wilbur and Orville Wright: The First Airplane</title>
+            <description>Wilbur and Orville Wright quietly developed a powered flying machine that proved heavier-than-air flight was possible more than 120 years ago. </description>
+            <link>https://evil.example.com/a/wilbur-and-orville-wright-the-first-airplane/7998765.html</link> 
+            <guid>https://evil.example.com/a/wilbur-and-orville-wright-the-first-airplane/7998765.html</guid>            
+            <pubDate>Mon, 17 Mar 2025 22:05:00 +0000</pubDate>
+            <category>All About America</category><category>Lessons of the Day</category><category>Science &amp; Technology</category><enclosure url="https://gdb.voanews.com/30e69ae7-4bf3-49d6-330f-08dd5c897904_w800_h450.jpg" length="0" type="image/jpeg"/>
+        </item>
+</channel>
+</rss>

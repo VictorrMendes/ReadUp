@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.gamification.models import Streak
 from app.gamification.streak import effective_streak, next_streak
-from app.gamification.xp import DAILY_GOAL_XP, TEXT_COMPLETED_XP, xp_for_words
+from app.gamification.xp import DAILY_GOAL_XP, completion_xp, xp_for_words
 from app.goals.service import active_target
 from app.stats.models import DailyStats
 
@@ -34,13 +34,45 @@ def _count_streak_day(session: Session, user_id: int, today: date) -> None:
     streak.last_active_day = today
 
 
+def _goal_bonus(session: Session, user_id: int, today: date, words_today: int) -> int:
+    """Vira a marca da meta do dia se as palavras de hoje cumprem a meta ativa: +50 XP e conta o
+    dia na ofensiva. Só quem vira a marca ganha (uma vez por dia). Devolve o XP ganho."""
+    target = active_target(session, user_id)
+    if target is None or words_today < target:
+        return 0
+    flipped = session.scalar(
+        update(DailyStats)
+        .where(DailyStats.user_id == user_id, DailyStats.day == today, ~DailyStats.goal_met)
+        .values(goal_met=True, xp=DailyStats.xp + DAILY_GOAL_XP)
+        .returning(DailyStats.user_id)
+    )
+    if flipped is None:
+        return 0
+    _count_streak_day(session, user_id, today)
+    return DAILY_GOAL_XP
+
+
+def settle_goal(session: Session, user_id: int) -> int:
+    """Depois de mudar a meta: se as palavras de hoje já cumprem a nova meta, vira a marca
+    (mesma regra do registro de leitura). Devolve o XP ganho."""
+    today = local_today()
+    words_today = session.scalar(
+        select(DailyStats.words_read)
+        .where(DailyStats.user_id == user_id, DailyStats.day == today, ~DailyStats.goal_met)
+        .with_for_update()
+    )
+    return 0 if words_today is None else _goal_bonus(session, user_id, today, words_today)
+
+
 def add_daily_activity(
-    session: Session, user_id: int, words: int, seconds: int, texts_completed: int
+    session: Session, user_id: int, words: int, seconds: int, completed_words: int | None
 ) -> int:
     """Soma a atividade no dia local do usuário (upsert) e devolve o XP ganho nesta chamada.
 
-    Nada a somar → não cria linha.
+    `completed_words`: tamanho do texto concluído nesta chamada (None se nenhum). Nada a
+    somar → não cria linha.
     """
+    texts_completed = int(completed_words is not None)
     if not (words or seconds or texts_completed):
         return 0
     today = local_today()
@@ -65,23 +97,14 @@ def add_daily_activity(
     ).one()
     row = (DailyStats.user_id == user_id) & (DailyStats.day == today)
 
-    gained = xp_for_words(words_today - words, words_today) + texts_completed * TEXT_COMPLETED_XP
+    gained = xp_for_words(words_today - words, words_today)
+    if completed_words is not None:
+        gained += completion_xp(completed_words)
     if gained:
         session.execute(update(DailyStats).where(row).values(xp=DailyStats.xp + gained))
 
     if not goal_met:
-        target = active_target(session, user_id)
-        if target is not None and words_today >= target:
-            # só quem vira a marca ganha o bônus
-            flipped = session.scalar(
-                update(DailyStats)
-                .where(row, ~DailyStats.goal_met)
-                .values(goal_met=True, xp=DailyStats.xp + DAILY_GOAL_XP)
-                .returning(DailyStats.user_id)
-            )
-            if flipped is not None:
-                gained += DAILY_GOAL_XP
-                _count_streak_day(session, user_id, today)
+        gained += _goal_bonus(session, user_id, today, words_today)
     return gained
 
 

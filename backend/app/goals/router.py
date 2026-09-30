@@ -10,7 +10,7 @@ from app.db import get_session
 from app.goals.models import ReadingGoal
 from app.goals.service import GoalStatus, active_target, goal_status
 from app.stats.models import DailyStats
-from app.stats.service import local_today
+from app.stats.service import local_today, settle_goal
 from app.users.models import User
 
 router = APIRouter(prefix="/goals", tags=["goals"])
@@ -49,5 +49,8 @@ def set_goal(body: GoalIn, user: CurrentUser, session: DbSession) -> GoalStatus:
             current.active = False  # mantém o histórico
             session.flush()
         session.add(ReadingGoal(user_id=user.id, target=body.target))
+        session.flush()
+        # meta nova já cumprida pelas palavras de hoje: mesma virada do registro de leitura
+        settle_goal(session, user.id)
     session.commit()
     return _status(session, user.id)

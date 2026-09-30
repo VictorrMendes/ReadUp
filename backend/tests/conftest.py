@@ -1,3 +1,4 @@
+import os
 import uuid
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -17,6 +18,9 @@ from app.main import app
 from app.stats.models import DailyStats
 from app.stats.service import local_today
 from app.users.models import User
+
+# testes nunca buscam notícias de verdade (lido no lifespan, se algum teste o iniciar)
+os.environ["NEWS_FETCH_HOURS"] = "0"
 
 client = TestClient(app)
 
@@ -70,19 +74,58 @@ def article_id() -> Iterator[int]:
         session.commit()
 
 
+MakeArticle = Callable[[int], int]
+
+
+@pytest.fixture
+def make_article() -> Iterator[MakeArticle]:
+    """Cria textos do feed com `word_count` palavras; apaga ao fim."""
+    ids: list[int] = []
+
+    def create(word_count: int) -> int:
+        with Session(engine) as session:
+            article = Article(
+                title=f"test-{uuid.uuid4().hex}",
+                content="word " * word_count,
+                source="test",
+                category="Cotidiano",
+                difficulty="A1",
+                word_count=word_count,
+            )
+            session.add(article)
+            session.commit()
+            ids.append(article.id)
+            return article.id
+
+    yield create
+    with Session(engine) as session:
+        session.execute(delete(Article).where(Article.id.in_(ids)))
+        session.commit()
+
+
 def post(headers: dict[str, str], **body: Any) -> Any:
     return client.post("/reading/progress", json=body, headers=headers)
 
 
-def pretend_time_passed(user_id: int, article_id: int, seconds: int) -> None:
-    """Recua updated_at como se `seconds` tivessem passado desde o último registro."""
+def pretend_time_passed(user_id: int, article_id: int | None, seconds: int) -> None:
+    """Recua os relógios como se `seconds` tivessem passado desde o último registro: o do texto
+    (reading_progress.updated_at; todos os textos do usuário se article_id for None) e o do
+    usuário (users.last_reading_at, o orçamento de tempo por usuário)."""
+    params = {"s": seconds, "u": user_id, "a": article_id}
     with Session(engine) as session:
         session.execute(
             text(
                 "UPDATE reading_progress SET updated_at = updated_at - make_interval(secs => :s)"
-                " WHERE user_id = :u AND article_id = :a"
+                " WHERE user_id = :u AND (CAST(:a AS BIGINT) IS NULL OR article_id = :a)"
             ),
-            {"s": seconds, "u": user_id, "a": article_id},
+            params,
+        )
+        session.execute(
+            text(
+                "UPDATE users SET last_reading_at = last_reading_at - make_interval(secs => :s)"
+                " WHERE id = :u"
+            ),
+            params,
         )
         session.commit()
 

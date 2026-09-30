@@ -36,15 +36,22 @@ export function startReadingSession({
   let pendingSeconds = 0;
   let secondsSinceSend = 0;
   let inFlight = false;
+  // pedido de envio que chegou durante outro envio (stop, background, reabertura): roda ao
+  // terminar o atual, em vez de ser descartado; open vence se algum dos pedidos era abertura
+  let queued: { open: boolean } | null = null;
   let xp = 0;
   // estado da meta na primeira resposta (abertura): só conta como cumprida na sessão se virou depois
   let goalMetBefore: boolean | null = null;
 
   // open: envio de abertura (0 s), mesmo sem nada novo a enviar
   async function flush(open = false) {
+    if (inFlight) {
+      queued = { open: open || (queued?.open ?? false) };
+      return;
+    }
     const seconds = open ? 0 : Math.min(MAX_SECONDS_PER_SEND, pendingSeconds);
     const progress = maxProgress;
-    if (inFlight || (!open && seconds === 0 && progress <= sentProgress)) return;
+    if (!open && seconds === 0 && progress <= sentProgress) return;
 
     inFlight = true;
     pendingSeconds -= seconds;
@@ -65,6 +72,11 @@ export function startReadingSession({
       else if (!(e instanceof ApiError) || e.status >= 500) pendingSeconds += seconds;
     } finally {
       inFlight = false;
+      if (queued) {
+        const next = queued;
+        queued = null;
+        void flush(next.open);
+      }
     }
   }
 

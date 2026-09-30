@@ -181,3 +181,52 @@ test("expõe a ofensiva da última resposta", async () => {
   });
   session.stop();
 });
+
+// envio que só termina quando o teste manda
+function pending() {
+  let resolve: (value: ProgressResult) => void = () => {};
+  const promise = new Promise<ProgressResult>((r) => (resolve = r));
+  return { promise, resolve: () => resolve(OK) };
+}
+
+test("stop() durante um envio pendente envia o acumulado quando ele termina", async () => {
+  const opening = pending();
+  const send = jest.fn().mockReturnValueOnce(opening.promise).mockResolvedValue(OK);
+  const { session } = start(send);
+  session.report(30);
+  await advance(7); // abertura ainda sem resposta
+
+  session.stop(); // sair da tela / próximo capítulo
+  await advance(0);
+  expect(send).toHaveBeenCalledTimes(1); // não dispara em paralelo
+
+  opening.resolve();
+  await advance(0);
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(send).toHaveBeenLastCalledWith(30, 7); // os 7 s e o progresso não se perdem
+});
+
+test("voltar do background durante um envio pendente ainda reabre a sessão", async () => {
+  const inFlight = pending();
+  const send = jest
+    .fn()
+    .mockResolvedValueOnce(OK) // abertura
+    .mockReturnValueOnce(inFlight.promise) // envio dos 15 s, demora
+    .mockResolvedValue(OK);
+  const { session } = start(send);
+  await advance(15);
+  expect(send).toHaveBeenLastCalledWith(0, 15);
+
+  appState = "background";
+  onAppStateChange("background");
+  appState = "active";
+  onAppStateChange("active"); // reabertura pedida com o envio ainda pendente
+  await advance(0);
+  expect(send).toHaveBeenCalledTimes(2);
+
+  inFlight.resolve();
+  await advance(0);
+  expect(send).toHaveBeenCalledTimes(3);
+  expect(send).toHaveBeenLastCalledWith(0, 0); // abertura não foi descartada
+  session.stop();
+});

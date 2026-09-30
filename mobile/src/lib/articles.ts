@@ -27,6 +27,8 @@ export function listArticles(token: string, level?: Level): Promise<ArticleSumma
 export type ArticleDetail = ArticleSummary & {
   content: string;
   next_article_id: number | null; // próximo capítulo do mesmo livro
+  source_url: string | null; // link original (notícias)
+  attribution: string | null; // crédito da fonte (notícias); null para textos do app e PDFs
 };
 
 export function getArticle(token: string, id: number): Promise<ArticleDetail> {

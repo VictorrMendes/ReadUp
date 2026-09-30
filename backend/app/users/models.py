@@ -18,3 +18,5 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(Text)
     english_level: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # último envio de progresso em qualquer texto: orçamento de tempo de leitura por usuário
+    last_reading_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

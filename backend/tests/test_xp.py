@@ -6,10 +6,24 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import engine
-from app.gamification.xp import DAILY_GOAL_XP, TEXT_COMPLETED_XP, xp_for_words
+from app.gamification.xp import (
+    DAILY_GOAL_XP,
+    MIN_WORDS_FOR_COMPLETION_XP,
+    TEXT_COMPLETED_XP,
+    completion_xp,
+    xp_for_words,
+)
 from app.stats.models import DailyStats
 from app.stats.service import local_today
-from tests.conftest import MakeUser, client, open_session, post, pretend_time_passed, today_stats
+from tests.conftest import (
+    MakeArticle,
+    MakeUser,
+    client,
+    open_session,
+    post,
+    pretend_time_passed,
+    today_stats,
+)
 
 ZEROS = {
     "xp_total": 0,
@@ -203,3 +217,24 @@ def test_summary_sums_days_and_is_isolated_per_user(make_user: MakeUser) -> None
     }
     assert theirs == {**ZEROS, "xp_total": 7, "xp_today": 7, "words_today": 70, "words_total": 70}
     assert nothing == ZEROS
+
+
+@pytest.mark.parametrize(("words", "bonus"), [(50, 0), (99, 0), (100, TEXT_COMPLETED_XP)])
+def test_completion_xp_needs_a_minimum_size(words: int, bonus: int) -> None:
+    assert MIN_WORDS_FOR_COMPLETION_XP == 100
+    assert completion_xp(words) == bonus
+
+
+def test_completing_a_tiny_text_counts_but_gives_no_bonus(
+    make_user: MakeUser, make_article: MakeArticle
+) -> None:
+    user_id, headers = make_user()
+    tiny = make_article(50)
+    open_session(user_id, headers, tiny)
+
+    done = read(user_id, headers, tiny, 100)
+
+    assert (done["completed"], done["words_credited"], done["xp_gained"]) == (True, 50, 5)
+    stats = today_stats(user_id)
+    assert stats is not None
+    assert (stats.xp, stats.texts_completed) == (5, 1)

@@ -13,17 +13,23 @@ type Props = {
   article: Pick<
     ArticleSummary,
     "title" | "difficulty" | "category" | "word_count" | "estimated_minutes" | "progress" | "completed"
-  >;
+  > &
+    Partial<Pick<ArticleSummary, "source">>;
   onPress?: () => void;
 };
 
+// notícias mostram a fonte (ex.: "VOA Learning English"), sem logo de terceiros
+const NEWS_CATEGORY = "Notícias";
+
 export function ReadingCard({ article, onPress }: Props) {
   const inProgress = article.progress > 0 && !article.completed;
+  const source = article.category === NEWS_CATEGORY ? article.source : undefined;
   // leitor de tela: um rótulo só, em vez de ler badge por badge
   const label = [
     article.title,
     article.difficulty && `nível ${article.difficulty}`,
     article.category,
+    source,
     `${article.estimated_minutes} ${article.estimated_minutes === 1 ? "minuto" : "minutos"}`,
     article.completed ? "concluído" : inProgress && `${article.progress}% lido`,
   ]
@@ -53,6 +59,11 @@ export function ReadingCard({ article, onPress }: Props) {
           {article.estimated_minutes} min · {formatNumber(article.word_count)} palavras
         </AppText>
       </View>
+      {source && (
+        <AppText variant="caption" color="textSecondary">
+          {source}
+        </AppText>
+      )}
       {inProgress && (
         <View style={styles.progress}>
           <View style={styles.bar}>

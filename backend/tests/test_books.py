@@ -102,16 +102,30 @@ def test_clean_joins_lines_undoes_hyphenation_and_splits_paragraphs() -> None:
 
 
 def test_chapters_follow_the_outline_and_front_matter_joins_the_first() -> None:
-    pages = ["Cover page.", "Intro text here.", "Chapter one text.", "More of chapter one."]
+    pages = ["Cover page.", words(120) + ".", words(100, "one") + ".", "More of chapter one."]
     outline = [("Chapter One", 2), ("Intro", 1)]  # fora de ordem de propósito
 
     chapters = build_chapters(pages, outline)
 
-    assert [(c.title, c.content) for c in chapters] == [
-        ("Intro", "Cover page.\n\nIntro text here."),
-        ("Chapter One", "Chapter one text.\n\nMore of chapter one."),
+    assert [(c.title, c.content.split("\n\n")[0]) for c in chapters] == [
+        ("Intro", "Cover page."),
+        ("Chapter One", words(100, "one") + "."),
     ]
-    assert [c.word_count for c in chapters] == [5, 7]
+    assert chapters[1].content.endswith("\n\nMore of chapter one.")
+    assert [c.word_count for c in chapters] == [122, 104]
+
+
+def test_tiny_outline_chapters_are_joined_to_the_next() -> None:
+    # sumário com itens minúsculos (1 palavra) não pode virar centenas de "capítulos"
+    pages = ["Tiny.", "Small.", words(150) + ".", "Mini.", words(120) + ".", "End."]
+    outline = [(f"Item {i}", i) for i in range(6)]
+
+    chapters = build_chapters(pages, outline)
+
+    # 1+1+150 → "Item 0"; 1+120 → "Item 3"; o último (1 palavra) vai para o anterior
+    assert [(c.title, c.word_count) for c in chapters] == [("Item 0", 152), ("Item 3", 122)]
+    assert chapters[-1].content.endswith("End.")
+    assert all(c.word_count >= 100 for c in chapters)
 
 
 def test_without_usable_outline_sections_cut_at_page_breaks() -> None:
@@ -127,7 +141,7 @@ def test_without_usable_outline_sections_cut_at_page_breaks() -> None:
 
 
 def test_single_page_section_and_empty_sections_are_removed() -> None:
-    pages = [words(1500) + ".", "", "   ", words(10) + "."]
+    pages = [words(1500) + ".", "", "   ", words(110) + "."]
 
     by_pages = build_chapters(pages, [])
     by_outline = build_chapters(pages, [("One", 0), ("Empty", 1), ("Blank", 2), ("Last", 3)])
@@ -165,7 +179,7 @@ def upload(headers: dict[str, str], data: bytes, name: str = "My Book.pdf") -> A
 
 
 BOOK_PDF = make_pdf(
-    [lines_of(120), lines_of(90), lines_of(60)],
+    [lines_of(120), lines_of(90), lines_of(160)],
     outline=[("Chapter One", 0), ("Chapter Two", 2)],
 )
 
@@ -195,10 +209,10 @@ def test_upload_valid_pdf_creates_book_chapters_and_file(
     assert response.status_code == 201
     book = response.json()
     assert (book["title"], book["page_count"], book["chapter_count"]) == ("My Book", 3, 2)
-    assert (book["word_count"], book["words_read"], book["progress"]) == (270, 0, 0)
+    assert (book["word_count"], book["words_read"], book["progress"]) == (370, 0, 0)
     assert [(c["title"], c["position"], c["word_count"]) for c in book["chapters"]] == [
         ("Chapter One", 1, 210),
-        ("Chapter Two", 2, 60),
+        ("Chapter Two", 2, 160),
     ]
     assert book["chapters"][0]["estimated_minutes"] == 2
     files = list(storage.iterdir())
@@ -273,6 +287,38 @@ def test_page_and_text_limits_are_422(
     monkeypatch.setattr(pdf, limit, value)
 
     assert upload(headers, BOOK_PDF).status_code == 422
+
+
+def decompression_bomb() -> bytes:
+    """PDF de ~11 KB cujo stream de conteúdo descompactado passa de 11 MB."""
+    writer = PdfWriter()
+    page = writer.add_blank_page(612, 792)
+    stream = DecodedStreamObject()
+    stream.set_data(b"BT /F1 11 Tf 72 740 Td (boom) Tj ET" + b" " * 11_000_000)
+    page.replace_contents(stream.flate_encode())
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
+
+
+def test_stream_over_decompression_limit_is_422(
+    make_user: MakeUser, storage: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, headers = make_user()
+    bomb = decompression_bomb()
+
+    response = upload(headers, bomb)
+
+    assert len(bomb) < 100_000
+    assert (response.status_code, response.json()) == (
+        422,
+        {"detail": "Não foi possível ler este PDF"},
+    )
+    assert list(storage.iterdir()) == []
+    # é o limite de 10 MB que recusa: com o padrão do pypdf (75 MB) o mesmo arquivo abre
+    monkeypatch.setattr(pdf, "_STREAM_LIMITS", {})
+    pages, _ = extract(io.BytesIO(bomb))
+    assert len(pages) == 1
 
 
 @pytest.mark.parametrize(

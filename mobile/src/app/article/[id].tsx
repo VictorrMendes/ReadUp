@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/app-text";
+import { Attribution } from "@/components/attribution";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { IconButton } from "@/components/icon-button";
@@ -348,6 +349,9 @@ export default function ArticleScreen() {
                 onSelect={setSelection}
               />
             ))}
+            {article.attribution && (
+              <Attribution text={article.attribution} url={article.source_url} />
+            )}
             {(article.completed || result?.completed) && (
               <DoneCard
                 wordCount={article.word_count}

@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
@@ -10,12 +12,22 @@ from app.books.router import UploadSizeLimit
 from app.books.router import router as books_router
 from app.db import get_session
 from app.goals.router import router as goals_router
+from app.news.fetch import start_periodic
 from app.reading.router import router as reading_router
 from app.stats.router import router as stats_router
 from app.users.router import router as users_router
 from app.vocabulary.router import router as vocabulary_router
 
-app = FastAPI(title="ReadUp API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    news = start_periodic()  # busca de notícias a cada NEWS_FETCH_HOURS (0 desliga)
+    yield
+    if news:
+        news.cancel()
+
+
+app = FastAPI(title="ReadUp API", lifespan=lifespan)
 app.add_middleware(UploadSizeLimit)
 app.include_router(auth_router)
 app.include_router(users_router)

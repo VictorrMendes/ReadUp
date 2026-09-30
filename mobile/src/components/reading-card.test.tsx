@@ -51,3 +51,20 @@ test("com onPress vira botão com o mesmo rótulo", async () => {
 
   expect(onPress).toHaveBeenCalledTimes(1);
 });
+
+test("notícia mostra a fonte em caption e no rótulo; texto do app não", async () => {
+  await render(
+    <ReadingCard
+      article={{ ...ARTICLE, category: "Notícias", difficulty: "B1", source: "VOA Learning English" }}
+    />,
+  );
+
+  expect(screen.getByText("VOA Learning English")).toBeOnTheScreen();
+  expect(screen.getByText("Notícias")).toBeOnTheScreen();
+  expect(
+    screen.getByLabelText("The Lost Cat, nível B1, Notícias, VOA Learning English, 1 minuto"),
+  ).toBeOnTheScreen();
+
+  await render(<ReadingCard article={{ ...ARTICLE, source: "ReadUp" }} />);
+  expect(screen.queryByText("ReadUp")).not.toBeOnTheScreen();
+});

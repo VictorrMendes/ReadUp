@@ -11,6 +11,7 @@ from app.articles.text import estimated_minutes
 from app.auth.security import get_current_user
 from app.books.access import visible_to
 from app.db import get_session
+from app.news.attribution import attribution
 from app.reading.models import ReadingProgress
 from app.users.models import User
 
@@ -44,7 +45,14 @@ class ArticleSummary(BaseModel):
 
 class ArticleDetail(ArticleSummary):
     content: str
+    source_url: str | None  # link original (notícias); null para textos do app e PDFs
     next_article_id: int | None = None  # próximo capítulo do mesmo livro
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def attribution(self) -> str | None:
+        """Crédito da fonte (notícias); null para textos do app e PDFs."""
+        return attribution(self.source, self.published_at)
 
 
 def _with_progress(user: User) -> Select[Article, int, datetime | None]:

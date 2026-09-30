@@ -15,6 +15,7 @@ from app.main import app
 from app.stats.models import DailyStats
 from app.stats.service import local_today
 from app.users.models import User
+from tests.conftest import MakeUser, open_session, post, pretend_time_passed
 
 client = TestClient(app)
 
@@ -131,3 +132,42 @@ def test_patch_invalid_level_is_422(user: tuple[int, dict[str, str]], level: Any
     _, headers = user
     response = client.patch("/users/me", json={"english_level": level}, headers=headers)
     assert response.status_code == 422
+
+
+def test_lowering_goal_below_todays_words_meets_it_once(
+    make_user: MakeUser, article_id: int
+) -> None:
+    user_id, headers = make_user()
+    put_goal(headers, 500)
+    open_session(user_id, headers, article_id)
+    pretend_time_passed(user_id, article_id, 20)
+    read = post(headers, article_id=article_id, progress=40, seconds=15).json()  # 120 palavras
+
+    lowered = put_goal(headers, 100)
+    after_lower = client.get("/stats/summary", headers=headers).json()
+    put_goal(headers, 60)  # baixar de novo no mesmo dia
+    put_goal(headers, 500)
+    put_goal(headers, 100)
+    after_again = client.get("/stats/summary", headers=headers).json()
+
+    assert (read["words_credited"], read["goal_met"], read["xp_gained"]) == (120, False, 12)
+    assert lowered.json()["completed"] is True
+    assert (after_lower["xp_today"], after_lower["streak_current"]) == (12 + 50, 1)
+    assert after_lower["streak_active_today"] is True
+    assert (after_again["xp_today"], after_again["streak_current"]) == (12 + 50, 1)
+    with Session(engine) as session:
+        stats = session.scalar(
+            select(DailyStats).where(DailyStats.user_id == user_id, DailyStats.day == local_today())
+        )
+    assert stats is not None and stats.goal_met is True
+
+
+def test_goal_change_without_reading_today_creates_nothing(
+    user: tuple[int, dict[str, str]],
+) -> None:
+    user_id, headers = user
+
+    put_goal(headers, 50)
+
+    with Session(engine) as session:
+        assert session.scalar(select(DailyStats).where(DailyStats.user_id == user_id)) is None

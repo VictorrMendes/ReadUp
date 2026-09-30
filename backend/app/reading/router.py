@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -49,6 +49,12 @@ def save_progress(
     if word_count is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Texto não encontrado")
 
+    # trava o usuário ANTES da linha de progresso (sempre nessa ordem: sem deadlock). O tempo
+    # é um orçamento por usuário: vários textos abertos dividem o mesmo tempo real, sem somar.
+    last_reading_at = session.scalar(
+        select(User.last_reading_at).where(User.id == user.id).with_for_update()
+    )
+
     # cria a linha sem corrida entre requisições simultâneas; RETURNING diz se é nova
     created = (
         session.scalar(
@@ -68,12 +74,15 @@ def save_progress(
     now = session.execute(select(func.now())).scalar_one()
 
     # Linha nova ou retorno após pausa longa só ABRE a sessão (0 s, 0 palavras): o servidor não
-    # tem como conferir o tempo informado. Dentro da sessão, não soma mais do que passou.
+    # tem como conferir o tempo informado. Dentro da sessão, não soma mais do que passou neste
+    # texto nem desde o último envio do usuário em qualquer texto (nunca enviou → 0 s).
     elapsed = int((now - row.updated_at).total_seconds())
+    since_user = int((now - last_reading_at).total_seconds()) if last_reading_at else 0
     if created or elapsed > SESSION_GAP_SECONDS:
         seconds = 0
     else:
-        seconds = min(body.seconds, max(0, elapsed))
+        seconds = max(0, min(body.seconds, elapsed, since_user))
+    session.execute(update(User).where(User.id == user.id).values(last_reading_at=now))
 
     before = row.words_read
     after = credit(word_count, before, body.progress, seconds)
@@ -86,7 +95,9 @@ def save_progress(
     if completed_now:
         row.completed_at = now
 
-    xp_gained = add_daily_activity(session, user.id, after - before, seconds, int(completed_now))
+    xp_gained = add_daily_activity(
+        session, user.id, after - before, seconds, word_count if completed_now else None
+    )
     goal_met = goal_met_today(session, user.id)
     streak = streak_status(session, user.id).streak_current
     session.commit()

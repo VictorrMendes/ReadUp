@@ -2,6 +2,7 @@ import pytest
 
 from app.reading.rules import credit, progress_percent
 from tests.conftest import (
+    MakeArticle,
     MakeUser,
     client,
     open_session,
@@ -169,3 +170,26 @@ def test_articles_show_progress_of_logged_user_only(make_user: MakeUser, article
     assert (mine["progress"], mine["completed"]) == (50, False)
     assert (theirs["progress"], theirs["completed"]) == (0, False)
     assert listed[article_id]["progress"] == 50
+
+
+def test_two_open_texts_share_the_same_real_time(
+    make_user: MakeUser, make_article: MakeArticle
+) -> None:
+    user_id, headers = make_user()
+    first, second = make_article(300), make_article(300)
+    post(headers, article_id=first, progress=0, seconds=0)  # abre os dois
+    post(headers, article_id=second, progress=0, seconds=0)
+
+    pretend_time_passed(user_id, None, 20)  # 20 s reais para tudo
+    a1 = post(headers, article_id=first, progress=100, seconds=15).json()
+    b1 = post(headers, article_id=second, progress=100, seconds=15).json()
+    pretend_time_passed(user_id, None, 20)  # mais 20 s reais
+    b2 = post(headers, article_id=second, progress=100, seconds=15).json()
+    a2 = post(headers, article_id=first, progress=100, seconds=15).json()
+
+    # cada envio logo após o do outro texto não tem tempo novo: 40 s reais, 30 s creditados
+    assert [r["words_credited"] for r in (a1, b1, b2, a2)] == [150, 0, 150, 0]
+    stats = today_stats(user_id)
+    assert stats is not None
+    assert (stats.seconds_read, stats.words_read) == (30, 300)
+    assert stats.seconds_read <= 40 and stats.words_read <= 40 * 10

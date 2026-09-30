@@ -23,6 +23,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env}
       MYMEMORY_EMAIL: ${MYMEMORY_EMAIL:-}
       PDF_STORAGE_DIR: /app/storage/pdfs
+      NEWS_FETCH_HOURS: ${NEWS_FETCH_HOURS:-6}
+      NEWS_CONTACT: ${NEWS_CONTACT:-}
     volumes:
       - ./storage/pdfs:/app/storage/pdfs
     ports:
