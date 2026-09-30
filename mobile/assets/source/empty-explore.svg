@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<defs>
+<linearGradient id="page" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F1F6FE"/></linearGradient>
+<linearGradient id="blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2563EB"/><stop offset="1" stop-color="#1D4ED8"/></linearGradient>
+<filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1D4ED8" flood-opacity=".16"/></filter>
+</defs>
+<circle cx="60" cy="62" r="46" fill="#DBEAFE" fill-opacity=".6"/>
+<rect x="28" y="26" width="46" height="60" rx="7" fill="url(#page)" stroke="#DBEAFE" stroke-width="1.5" transform="rotate(-9 51 56)" filter="url(#sh)"/>
+<g transform="rotate(5 62 58)"><g filter="url(#sh)"><rect x="38" y="28" width="48" height="62" rx="7" fill="url(#page)" stroke="#DBEAFE" stroke-width="1.5"/></g>
+<rect x="46" y="42" width="30" height="3.5" rx="1.75" fill="#DBEAFE"/><rect x="46" y="49" width="24" height="3.5" rx="1.75" fill="#DBEAFE"/><rect x="46" y="56" width="32" height="3.5" rx="1.75" fill="#DBEAFE"/><rect x="46" y="63" width="26" height="3.5" rx="1.75" fill="#DBEAFE"/></g>
+<g filter="url(#sh)"><circle cx="74" cy="72" r="17" fill="#FFFFFF" fill-opacity=".92" stroke="url(#blue)" stroke-width="6"/></g>
+<rect x="65" y="65.5" width="18" height="4" rx="2" fill="#DBEAFE"/>
+<rect x="63" y="72" width="11" height="7" rx="2" fill="#2563EB" fill-opacity=".18"/>
+<rect x="64.5" y="73.5" width="8" height="4" rx="2" fill="#2563EB"/>
+<rect x="76" y="73.5" width="8" height="4" rx="2" fill="#DBEAFE"/>
+<path d="M86.5,84.5 L96,94" stroke="#1D4ED8" stroke-width="7" stroke-linecap="round"/>
+</svg>
