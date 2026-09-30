@@ -6,13 +6,17 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { StyleSheet, View } from "react-native";
 
+import { AppText } from "@/components/app-text";
+import { Button } from "@/components/button";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { colors, spacing } from "@/theme";
 
 void SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { token, isLoading } = useAuth();
+  const { token, user, userError, isLoading, refreshUser } = useAuth();
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
   // se a fonte falhar, segue com a fonte do sistema em vez de travar no splash
   const ready = !isLoading && (fontsLoaded || !!fontError);
@@ -21,14 +25,31 @@ function RootNavigator() {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
 
-  // splash continua visível até token e fontes carregarem (evita piscar a tela de login)
+  // splash continua visível até token, usuário e fontes carregarem (evita piscar a tela de login)
   if (!ready) return null;
+
+  if (token && !user && userError) {
+    return (
+      <View style={styles.center}>
+        <AppText color="errorText" style={styles.centerText}>
+          {userError}
+        </AppText>
+        <Button title="Tentar novamente" onPress={refreshUser} />
+      </View>
+    );
+  }
+
+  // nível ou meta ainda não escolhidos: só o onboarding
+  const onboarded = !!user && !!user.english_level && user.daily_goal !== null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={!!token}>
+      <Stack.Protected guard={!!user && onboarded}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="article/[id]" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!user && !onboarded}>
+        <Stack.Screen name="onboarding" />
       </Stack.Protected>
       <Stack.Protected guard={!token}>
         <Stack.Screen name="login" />
@@ -45,3 +66,15 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xl,
+    gap: spacing.lg,
+    backgroundColor: colors.background,
+  },
+  centerText: { textAlign: "center" },
+});

@@ -1,4 +1,4 @@
-import type { TextStyle } from "react-native";
+import type { PressableAndroidRippleConfig, TextStyle, ViewStyle } from "react-native";
 
 // Tokens do Design System (nota "ReadUp — Design System"). Telas usam só estes valores.
 export const colors = {
@@ -7,13 +7,16 @@ export const colors = {
   primary100: "#DBEAFE",
   success500: "#22C55E",
   success100: "#DCFCE7",
+  success600: "#16A34A", // ícones de concluído (3.30:1 sobre surface); success500 fica na barra e superfícies
   streak: "#F97316",
-  error: "#EF4444",
+  error: "#EF4444", // só borda e ícone (3.6:1 como texto não passa AA)
+  errorText: "#DC2626", // texto de erro e fundo do botão destrutivo (4.62:1 sobre background)
   background: "#F8FAFC",
   surface: "#FFFFFF",
   textPrimary: "#0F172A",
   textSecondary: "#64748B",
-  border: "#E2E8F0",
+  border: "#E2E8F0", // cards e divisórias
+  borderStrong: "#64748B", // borda de campo de formulário (4.76:1 sobre surface)
 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
@@ -55,3 +58,10 @@ export type TypographyVariant = keyof typeof typography;
 
 // área de toque mínima (acessibilidade)
 export const touchTarget = 44;
+
+// Feedback de toque padrão (Button, ReadingCard, chips, OptionList): leve redução + cor de pressed.
+export const pressedScale: ViewStyle = { transform: [{ scale: 0.98 }] };
+export const ripple: PressableAndroidRippleConfig = { color: colors.primary100 };
+
+// limite de escala da fonte do sistema para rótulos compactos (badges, chips, tab bar)
+export const compactFontScale = 1.4;

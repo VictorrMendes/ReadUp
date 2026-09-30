@@ -1,8 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import type { ComponentProps } from "react";
+import { Text } from "react-native";
 
-import { colors } from "@/theme";
+import { colors, compactFontScale, fontFamily } from "@/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -21,8 +22,23 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.primary500,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-        headerStyle: { backgroundColor: colors.surface },
+        headerStyle: {
+          backgroundColor: colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
+        headerShadowVisible: false,
         headerTintColor: colors.textPrimary,
+        headerTitleStyle: { fontFamily: fontFamily.semibold, fontSize: 18 },
+        // rótulo próprio: Inter + limite de escala da fonte (quebrava em 200%)
+        tabBarLabel: ({ color, children }) => (
+          <Text
+            maxFontSizeMultiplier={compactFontScale}
+            style={{ color, fontFamily: fontFamily.semibold, fontSize: 12 }}
+          >
+            {children}
+          </Text>
+        ),
         sceneStyle: { backgroundColor: colors.background },
       }}
     >
@@ -32,6 +48,8 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
+            // Início tem o título grande dentro da própria tela
+            headerShown: tab.name !== "index",
             tabBarIcon: ({ color, size, focused }) => (
               <Ionicons name={focused ? tab.icon : tab.iconOutline} color={color} size={size} />
             ),

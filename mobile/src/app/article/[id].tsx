@@ -130,7 +130,7 @@ export default function ArticleScreen() {
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <AppText color="error" style={styles.centerText}>
+          <AppText color="errorText" style={styles.centerText}>
             {error.message}
           </AppText>
           <Button title="Tentar novamente" onPress={retry} />
@@ -174,6 +174,12 @@ export default function ArticleScreen() {
               <Card style={styles.done}>
                 <AppText variant="h3">Leitura concluída</AppText>
                 <AppText color="textSecondary">{article.word_count} palavras lidas</AppText>
+                <Button
+                  variant="secondary"
+                  title="Voltar ao Explorar"
+                  onPress={() => router.navigate("/explore")}
+                  style={styles.doneAction}
+                />
               </Card>
             )}
           </View>
@@ -211,4 +217,5 @@ const styles = StyleSheet.create({
   meta: { marginTop: spacing.sm, marginBottom: spacing.xl },
   paragraph: { marginBottom: spacing.lg },
   done: { gap: spacing.xs, marginTop: spacing.lg },
+  doneAction: { marginTop: spacing.md },
 });

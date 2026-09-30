@@ -8,7 +8,16 @@ import {
 } from "react-native";
 
 import { AppText } from "@/components/app-text";
-import { colors, fontFamily, radius, spacing, touchTarget, type ColorToken } from "@/theme";
+import {
+  colors,
+  fontFamily,
+  pressedScale,
+  radius,
+  ripple,
+  spacing,
+  touchTarget,
+  type ColorToken,
+} from "@/theme";
 
 type Variant = "primary" | "secondary" | "ghost" | "destructive";
 
@@ -19,7 +28,7 @@ const VARIANTS: Record<
   primary: { background: "primary500", pressed: "primary600", text: "surface" },
   secondary: { background: "surface", pressed: "background", border: "border", text: "textPrimary" },
   ghost: { pressed: "primary100", text: "primary500" },
-  destructive: { background: "error", text: "surface" },
+  destructive: { background: "errorText", text: "surface" },
 };
 
 type Props = Omit<PressableProps, "children" | "style"> & {
@@ -43,6 +52,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      android_ripple={variant === "secondary" || variant === "ghost" ? ripple : undefined}
       {...props}
       disabled={inactive}
       accessibilityState={{ disabled: inactive, busy: loading }}
@@ -52,6 +62,7 @@ export function Button({
           styles.base,
           background && { backgroundColor: colors[background] },
           v.border && { borderWidth: 1, borderColor: colors[v.border] },
+          pressed && pressedScale,
           pressed && !v.pressed && styles.pressed,
           inactive && styles.inactive,
           style,

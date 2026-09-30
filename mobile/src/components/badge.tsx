@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
-import { colors, fontFamily, radius, spacing, type ColorToken } from "@/theme";
+import { colors, compactFontScale, fontFamily, radius, spacing, type ColorToken } from "@/theme";
 
 type Tone = "neutral" | "primary" | "success" | "streak";
 
@@ -23,7 +23,12 @@ export function Badge({ label, tone = "neutral" }: { label: string; tone?: Tone 
         { backgroundColor: colors[t.background], borderColor: colors[t.border] },
       ]}
     >
-      <AppText variant="caption" color={t.text} style={styles.label}>
+      <AppText
+        variant="caption"
+        color={t.text}
+        style={styles.label}
+        maxFontSizeMultiplier={compactFontScale}
+      >
         {label}
       </AppText>
     </View>

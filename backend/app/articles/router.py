@@ -60,14 +60,16 @@ def list_articles(
     category: str | None = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    in_progress: bool = False,
 ) -> list[ArticleSummary]:
-    stmt = (
-        _with_progress(user)
-        .options(defer(Article.content))
-        .order_by(Article.published_at.desc().nulls_last(), Article.id.desc())
-        .limit(limit)
-        .offset(offset)
-    )
+    stmt = _with_progress(user).options(defer(Article.content)).limit(limit).offset(offset)
+    if in_progress:
+        # "continuar lendo": começados e não terminados, o mais recente primeiro
+        stmt = stmt.where(ReadingProgress.progress > 0, ReadingProgress.progress < 100).order_by(
+            ReadingProgress.updated_at.desc()
+        )
+    else:
+        stmt = stmt.order_by(Article.published_at.desc().nulls_last(), Article.id.desc())
     if level:
         stmt = stmt.where(Article.difficulty == level)
     if category:

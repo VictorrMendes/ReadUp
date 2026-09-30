@@ -1,8 +1,9 @@
 import json
 import uuid
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select
@@ -11,9 +12,10 @@ from sqlalchemy.orm import Session
 from app.articles.models import Article
 from app.articles.seed import SEED_FILE, SOURCE, seed
 from app.articles.text import count_words, estimated_minutes
-from app.auth.security import create_access_token
+from app.auth.security import JWT_SECRET, create_access_token
 from app.db import engine
 from app.main import app
+from app.reading.models import ReadingProgress
 from app.users.models import User
 
 client = TestClient(app)
@@ -117,3 +119,46 @@ def test_seed_is_idempotent() -> None:
             select(func.count()).select_from(Article).where(Article.source == SOURCE)
         )
     assert total == len(json.loads(SEED_FILE.read_text(encoding="utf-8")))
+
+
+def test_in_progress_lists_started_unfinished_most_recent_first(auth: dict[str, str]) -> None:
+    user_id = int(jwt.decode(auth["Authorization"][7:], JWT_SECRET, algorithms=["HS256"])["sub"])
+    with Session(engine, expire_on_commit=False) as session:
+        articles = [
+            Article(
+                title=f"test-{uuid.uuid4().hex}",
+                content="x",
+                source="test",
+                category="Cotidiano",
+                difficulty="A1",
+                word_count=100,
+            )
+            for _ in range(4)
+        ]
+        session.add_all(articles)
+        session.flush()
+        now = datetime.now(UTC)
+        # progressos: 0 (não começou), 40 (antigo), 70 (recente), 100 (concluído)
+        for article, progress, minutes_ago in zip(
+            articles, [0, 40, 70, 100], [1, 30, 5, 1], strict=True
+        ):
+            session.add(
+                ReadingProgress(
+                    user_id=user_id,
+                    article_id=article.id,
+                    progress=progress,
+                    words_read=progress,
+                    updated_at=now - timedelta(minutes=minutes_ago),
+                )
+            )
+        session.commit()
+    try:
+        response = client.get("/articles", params={"in_progress": "true"}, headers=auth)
+
+        assert response.status_code == 200
+        items = [(item["id"], item["progress"]) for item in response.json()]
+        assert items == [(articles[2].id, 70), (articles[1].id, 40)]
+    finally:
+        with Session(engine) as session:  # reading_progress sai em cascade
+            session.execute(delete(Article).where(Article.id.in_([a.id for a in articles])))
+            session.commit()

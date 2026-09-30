@@ -28,3 +28,11 @@ export type ArticleDetail = ArticleSummary & { content: string };
 export function getArticle(token: string, id: number): Promise<ArticleDetail> {
   return apiFetch<ArticleDetail>(`/articles/${id}`, { token });
 }
+
+// "Continuar lendo": o texto começado e não concluído mais recente (ou null)
+export async function getContinueReading(token: string): Promise<ArticleSummary | null> {
+  const [latest] = await apiFetch<ArticleSummary[]>("/articles?in_progress=true&limit=1", {
+    token,
+  });
+  return latest ?? null;
+}

@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
@@ -5,7 +6,8 @@ import { Badge } from "@/components/badge";
 import { Card } from "@/components/card";
 import { ProgressBar } from "@/components/progress-bar";
 import type { ArticleSummary } from "@/lib/articles";
-import { spacing } from "@/theme";
+import { formatNumber } from "@/lib/format";
+import { colors, pressedScale, radius, ripple, spacing } from "@/theme";
 
 type Props = {
   article: Pick<
@@ -16,27 +18,68 @@ type Props = {
 };
 
 export function ReadingCard({ article, onPress }: Props) {
+  const inProgress = article.progress > 0 && !article.completed;
+  // leitor de tela: um rótulo só, em vez de ler badge por badge
+  const label = [
+    article.title,
+    article.difficulty && `nível ${article.difficulty}`,
+    article.category,
+    `${article.estimated_minutes} ${article.estimated_minutes === 1 ? "minuto" : "minutos"}`,
+    article.completed ? "concluído" : inProgress && `${article.progress}% lido`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   const card = (
     <Card style={styles.card}>
-      <AppText variant="h3">{article.title}</AppText>
       <View style={styles.badges}>
         {article.difficulty && <Badge label={article.difficulty} tone="primary" />}
         <Badge label={article.category} />
-        {article.completed && <Badge label="Concluído" tone="success" />}
       </View>
-      <AppText variant="small" color="textSecondary">
-        {article.estimated_minutes} min · {article.word_count} palavras
+      {article.completed && (
+        <Ionicons
+          name="checkmark-circle"
+          size={24}
+          color={colors.success600}
+          style={styles.check}
+        />
+      )}
+      <AppText variant="h3" numberOfLines={2}>
+        {article.title}
       </AppText>
-      {article.progress > 0 && <ProgressBar value={article.progress / 100} />}
+      <View style={styles.meta}>
+        <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+        <AppText variant="small" color="textSecondary">
+          {article.estimated_minutes} min · {formatNumber(article.word_count)} palavras
+        </AppText>
+      </View>
+      {inProgress && (
+        <View style={styles.progress}>
+          <View style={styles.bar}>
+            <ProgressBar value={article.progress / 100} />
+          </View>
+          <AppText variant="caption" color="textSecondary">
+            {article.progress}% lido
+          </AppText>
+        </View>
+      )}
     </Card>
   );
 
-  if (!onPress) return card;
+  if (!onPress) {
+    return (
+      <View accessible accessibilityLabel={label}>
+        {card}
+      </View>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      style={({ pressed }) => pressed && styles.pressed}
+      accessibilityLabel={label}
+      android_ripple={ripple}
+      style={({ pressed }) => [styles.pressable, pressed && pressedScale]}
     >
       {card}
     </Pressable>
@@ -45,6 +88,10 @@ export function ReadingCard({ article, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: { gap: spacing.sm },
-  badges: { flexDirection: "row", gap: spacing.sm },
-  pressed: { opacity: 0.85 },
+  badges: { flexDirection: "row", gap: spacing.sm, paddingRight: spacing.xxl },
+  check: { position: "absolute", top: spacing.lg, right: spacing.lg },
+  meta: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  progress: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  bar: { flex: 1 },
+  pressable: { borderRadius: radius.card, overflow: "hidden" }, // ripple respeita o raio
 });

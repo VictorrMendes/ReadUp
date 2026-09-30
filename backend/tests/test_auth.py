@@ -99,7 +99,7 @@ def test_me_with_token(email: str) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"id", "name", "email", "english_level", "created_at"}
+    assert set(body) == {"id", "name", "email", "english_level", "created_at", "daily_goal"}
     assert body["email"] == email
 
 

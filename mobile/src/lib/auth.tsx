@@ -2,6 +2,7 @@ import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { ApiError, apiFetch } from "@/lib/api";
+import type { Level } from "@/lib/articles";
 
 const TOKEN_KEY = "readup.access_token";
 
@@ -11,8 +12,9 @@ export type User = {
   id: number;
   name: string;
   email: string;
-  english_level: string | null;
+  english_level: Level | null;
   created_at: string;
+  daily_goal: number | null;
 };
 
 async function saveToken(response: TokenResponse): Promise<string> {
@@ -39,41 +41,92 @@ export function logout(): Promise<void> {
   return SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
+function fetchMe(token: string): Promise<User> {
+  return apiFetch<User>("/users/me", { token });
+}
+
 type AuthContextValue = {
   token: string | null;
+  user: User | null;
+  // erro ao carregar o usuário (sem 401): o app mostra "tentar novamente"
+  userError: string | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tokenLoaded, setTokenLoaded] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [userError, setUserError] = useState<string | null>(null);
 
   useEffect(() => {
     SecureStore.getItemAsync(TOKEN_KEY)
       .then(setToken)
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  const signIn = useCallback(async (email: string, password: string) => {
-    setToken(await login(email, password));
-  }, []);
-
-  const signUp = useCallback(async (name: string, email: string, password: string) => {
-    setToken(await register(name, email, password));
+      .finally(() => setTokenLoaded(true));
   }, []);
 
   const signOut = useCallback(async () => {
     await logout();
+    setUser(null);
+    setUserError(null);
     setToken(null);
   }, []);
 
+  const handleUserError = useCallback(
+    (e: unknown) => {
+      if (e instanceof ApiError && e.status === 401) void signOut();
+      else setUserError(e instanceof ApiError ? e.detail : "Não foi possível carregar seus dados.");
+    },
+    [signOut],
+  );
+
+  // token salvo de uma sessão anterior: carrega o usuário antes de liberar as rotas
+  useEffect(() => {
+    if (!token || user || userError) return;
+    let active = true;
+    fetchMe(token)
+      .then((me) => active && setUser(me))
+      .catch((e: unknown) => active && handleUserError(e));
+    return () => {
+      active = false;
+    };
+  }, [token, user, userError, handleUserError]);
+
+  // login/cadastro já trazem o usuário junto, sem tela em branco entre o formulário e o app
+  const signIn = useCallback(async (email: string, password: string) => {
+    const newToken = await login(email, password);
+    setUser(await fetchMe(newToken));
+    setToken(newToken);
+  }, []);
+
+  const signUp = useCallback(async (name: string, email: string, password: string) => {
+    const newToken = await register(name, email, password);
+    setUser(await fetchMe(newToken));
+    setToken(newToken);
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+    try {
+      setUser(await fetchMe(token));
+      setUserError(null);
+    } catch (e) {
+      handleUserError(e);
+    }
+  }, [token, handleUserError]);
+
+  const isLoading = !tokenLoaded || (!!token && !user && !userError);
+
   return (
-    <AuthContext.Provider value={{ token, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{ token, user, userError, isLoading, signIn, signUp, signOut, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -83,30 +136,4 @@ export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext);
   if (!value) throw new Error("useAuth deve ser usado dentro de <AuthProvider>");
   return value;
-}
-
-// GET /users/me; token expirado/inválido (401) encerra a sessão.
-export function useCurrentUser(): { user: User | null; error: string | null } {
-  const { token, signOut } = useAuth();
-  const [user, setUser] = useState<User | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!token) return;
-    let active = true;
-    apiFetch<User>("/users/me", { token })
-      .then((me) => active && setUser(me))
-      .catch((e: unknown) => {
-        if (e instanceof ApiError && e.status === 401) {
-          void signOut();
-        } else if (active) {
-          setError(e instanceof ApiError ? e.detail : "Não foi possível carregar seus dados.");
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [token, signOut]);
-
-  return { user, error };
 }

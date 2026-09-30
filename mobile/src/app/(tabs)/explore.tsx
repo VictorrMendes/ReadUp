@@ -1,7 +1,6 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -14,10 +13,20 @@ import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
 import { ReadingCard } from "@/components/reading-card";
+import { Skeleton } from "@/components/skeleton";
 import { ApiError } from "@/lib/api";
 import { LEVELS, listArticles, type ArticleSummary, type Level } from "@/lib/articles";
 import { useAuth } from "@/lib/auth";
-import { colors, fontFamily, radius, spacing, touchTarget } from "@/theme";
+import {
+  colors,
+  compactFontScale,
+  fontFamily,
+  pressedScale,
+  radius,
+  ripple,
+  spacing,
+  touchTarget,
+} from "@/theme";
 
 const FILTERS: (Level | null)[] = [null, ...LEVELS];
 
@@ -94,12 +103,19 @@ export default function ExploreScreen() {
               onPress={() => selectLevel(option)}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              style={[styles.chip, selected && styles.chipSelected]}
+              android_ripple={ripple}
+              style={({ pressed }) => [
+                styles.chip,
+                selected && styles.chipSelected,
+                pressed && pressedScale,
+                pressed && !selected && styles.chipPressed,
+              ]}
             >
               <AppText
                 variant="small"
                 color={selected ? "surface" : "textPrimary"}
                 style={styles.chipLabel}
+                maxFontSizeMultiplier={compactFontScale}
               >
                 {option ?? "Todos"}
               </AppText>
@@ -110,14 +126,16 @@ export default function ExploreScreen() {
 
       {error ? (
         <View style={styles.center}>
-          <AppText color="error" style={styles.errorText}>
+          <AppText color="errorText" style={styles.errorText}>
             {error}
           </AppText>
           <Button title="Tentar novamente" onPress={retry} />
         </View>
       ) : articles === null ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary500} />
+        <View style={styles.list} accessible accessibilityLabel="Carregando textos">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} height={132} />
+          ))}
         </View>
       ) : (
         <FlatList
@@ -143,8 +161,12 @@ export default function ExploreScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="compass-outline"
-              title="Nenhum texto para este nível ainda."
+              illustration={require("@/assets/images/empty-explore.png")}
+              title="Nenhum texto para este nível ainda"
               message="Escolha outro nível ou volte mais tarde."
+              action={
+                level ? { label: "Ver todos os níveis", onPress: () => selectLevel(null) } : undefined
+              }
             />
           }
         />
@@ -167,8 +189,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
+    overflow: "hidden", // ripple respeita o raio
   },
   chipSelected: { backgroundColor: colors.primary500, borderColor: colors.primary500 },
+  chipPressed: { backgroundColor: colors.background },
   chipLabel: { fontFamily: fontFamily.semibold },
   center: {
     flex: 1,

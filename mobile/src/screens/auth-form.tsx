@@ -1,14 +1,15 @@
 import { Link } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
+import { IconButton } from "@/components/icon-button";
 import { TextInput } from "@/components/text-input";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { colors, spacing } from "@/theme";
+import { colors, radius, spacing } from "@/theme";
 
 // Tela única para login e cadastro: os dois fluxos só diferem no campo nome e na ação.
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
@@ -17,6 +18,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,6 +50,12 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Image
+            source={require("@/assets/images/icon.png")}
+            style={styles.logo}
+            accessibilityIgnoresInvertColors
+            accessibilityLabel="ReadUp"
+          />
           <AppText variant="h1">{isRegister ? "Criar conta" : "Entrar"}</AppText>
           <AppText color="textSecondary" style={styles.subtitle}>
             {isRegister ? "Comece seu hábito diário de leitura." : "Continue sua leitura em inglês."}
@@ -79,17 +87,25 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             placeholder="Mínimo 8 caracteres"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
             autoComplete={isRegister ? "new-password" : "current-password"}
             textContentType={isRegister ? "newPassword" : "password"}
             maxLength={128}
             onSubmitEditing={submit}
+            accessory={
+              <IconButton
+                icon={showPassword ? "eye-off-outline" : "eye-outline"}
+                color="textSecondary"
+                accessibilityLabel={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                onPress={() => setShowPassword((v) => !v)}
+              />
+            }
           />
 
           {error && (
-            <AppText variant="small" color="error" accessibilityLiveRegion="polite">
+            <AppText variant="small" color="errorText" accessibilityLiveRegion="polite">
               {error}
             </AppText>
           )}
@@ -116,7 +132,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  container: { flexGrow: 1, justifyContent: "center", padding: spacing.xl, gap: spacing.md },
+  // alinhado ao topo: centralizado, o bloco "pula" quando o teclado abre
+  container: { flexGrow: 1, padding: spacing.xl, paddingTop: spacing.xxxl, gap: spacing.md },
+  logo: { width: 72, height: 72, borderRadius: radius.lg, marginBottom: spacing.xl },
   subtitle: { marginBottom: spacing.md },
   submit: { marginTop: spacing.sm },
 });
