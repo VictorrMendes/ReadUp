@@ -81,6 +81,7 @@ def test_first_send_only_opens_session(make_user: MakeUser, article_id: int) -> 
         "completed": False,
         "xp_gained": 0,
         "goal_met": False,
+        "streak": 0,
     }
     assert today_stats(user_id) is None
 

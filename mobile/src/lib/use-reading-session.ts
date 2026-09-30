@@ -7,8 +7,9 @@ import { saveProgress, type ProgressResult } from "@/lib/reading";
 export const SEND_EVERY_SECONDS = 15;
 const MAX_SECONDS_PER_SEND = 120; // limite do backend
 
-// Acumulado da sessão: XP somado das respostas e se a meta do dia foi cumprida durante ela.
-export type SessionGains = { xp: number; goalMet: boolean };
+// Acumulado da sessão: XP somado das respostas, se a meta do dia foi cumprida durante ela e a
+// ofensiva da última resposta.
+export type SessionGains = { xp: number; goalMet: boolean; streak: number };
 
 type SessionOptions = {
   send: (progress: number, seconds: number) => Promise<ProgressResult>;
@@ -52,7 +53,11 @@ export function startReadingSession({
       const result = await send(progress, seconds);
       xp += result.xp_gained;
       goalMetBefore ??= result.goal_met;
-      onResult(result, { xp, goalMet: result.goal_met && !goalMetBefore });
+      onResult(result, {
+        xp,
+        goalMet: result.goal_met && !goalMetBefore,
+        streak: result.streak,
+      });
       sentProgress = Math.max(sentProgress, progress);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) onUnauthorized();
@@ -103,7 +108,7 @@ export function useReadingSession({
   onUnauthorized: () => void;
 }) {
   const [result, setResult] = useState<ProgressResult | null>(null);
-  const [gains, setGains] = useState<SessionGains>({ xp: 0, goalMet: false });
+  const [gains, setGains] = useState<SessionGains>({ xp: 0, goalMet: false, streak: 0 });
   const session = useRef<ReadingSession | null>(null);
   // progresso reportado antes da sessão começar (ex.: onLayout de texto que cabe na tela)
   const reportedEarly = useRef(0);

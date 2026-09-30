@@ -9,18 +9,19 @@ import { DailyGoal } from "@/components/daily-goal";
 import { Highlight } from "@/components/highlight";
 import { ReadingCard } from "@/components/reading-card";
 import { Skeleton } from "@/components/skeleton";
+import { StreakCard } from "@/components/streak-card";
 import { XPBadge } from "@/components/xp-badge";
 import { ApiError } from "@/lib/api";
 import { getContinueReading, type ArticleSummary } from "@/lib/articles";
 import { useAuth } from "@/lib/auth";
 import { getGoal, type GoalStatus } from "@/lib/preferences";
-import { getSummary } from "@/lib/stats";
+import { getSummary, type StatsSummary } from "@/lib/stats";
 import { colors, spacing } from "@/theme";
 
 type HomeData = {
   goal: GoalStatus;
   continueReading: ArticleSummary | null;
-  xpTotal: number | null;
+  summary: StatsSummary | null;
 };
 
 export default function HomeScreen() {
@@ -36,15 +37,12 @@ export default function HomeScreen() {
       Promise.all([
         getGoal(token),
         getContinueReading(token),
-        // falha só do resumo não derruba a tela: o badge some
-        getSummary(token).then(
-          (summary) => summary.xp_total,
-          () => null,
-        ),
+        // falha só do resumo não derruba a tela: somem o XP e a ofensiva
+        getSummary(token).catch(() => null),
       ])
-        .then(([goal, continueReading, xpTotal]) => {
+        .then(([goal, continueReading, summary]) => {
           if (!active) return;
-          setData({ goal, continueReading, xpTotal });
+          setData({ goal, continueReading, summary });
           setError(null);
         })
         .catch((e: unknown) => {
@@ -58,6 +56,7 @@ export default function HomeScreen() {
   );
 
   const goal = data?.goal;
+  const summary = data?.summary;
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safe}>
@@ -72,7 +71,7 @@ export default function HomeScreen() {
             <AppText variant="h1">Olá, </AppText>
             <Highlight variant="h1">{user?.name ?? ""}</Highlight>
           </View>
-          {data?.xpTotal != null && <XPBadge xp={data.xpTotal} />}
+          {summary && <XPBadge xp={summary.xp_total} />}
         </View>
 
         {error && !data ? (
@@ -91,6 +90,14 @@ export default function HomeScreen() {
                 wordsToday={goal.words_today}
                 remaining={goal.remaining}
                 completed={goal.completed}
+              />
+            )}
+
+            {summary && (
+              <StreakCard
+                current={summary.streak_current}
+                longest={summary.streak_longest}
+                activeToday={summary.streak_active_today}
               />
             )}
 

@@ -12,6 +12,7 @@ const OK: ProgressResult = {
   completed: false,
   xp_gained: 0,
   goal_met: false,
+  streak: 0,
 };
 
 let appState: AppStateStatus = "active";
@@ -45,7 +46,7 @@ test("abre a sessão com 0 s ao iniciar e envia após 15 s com o maior progresso
   const { session, send, onResult } = start();
   await advance(0);
   expect(send).toHaveBeenCalledWith(0, 0);
-  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, goalMet: false });
+  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, goalMet: false, streak: 0 });
 
   session.report(40.7);
   session.report(25); // voltar a rolagem não reduz
@@ -138,13 +139,13 @@ test("soma o xp_gained dos envios e marca a meta cumprida durante a sessão", as
   const { session, onResult } = start(send);
 
   await advance(15);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, goalMet: false });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, goalMet: false, streak: 0 });
   await advance(15);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, goalMet: true });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, goalMet: true, streak: 0 });
   await advance(15);
 
   expect(send).toHaveBeenCalledTimes(4);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, goalMet: true });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, goalMet: true, streak: 0 });
   session.stop();
 });
 
@@ -154,6 +155,29 @@ test("meta já cumprida antes da sessão não conta como cumprida nela", async (
 
   await advance(15);
 
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, goalMet: false });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, goalMet: false, streak: 0 });
+  session.stop();
+});
+
+test("expõe a ofensiva da última resposta", async () => {
+  const send = jest
+    .fn()
+    .mockResolvedValueOnce({ ...OK, streak: 3 }) // abertura: ofensiva de ontem
+    .mockResolvedValue({ ...OK, xp_gained: 56, goal_met: true, streak: 4 });
+  const { session, onResult } = start(send);
+
+  await advance(0);
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), {
+    xp: 0,
+    goalMet: false,
+    streak: 3,
+  });
+  await advance(15);
+
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), {
+    xp: 56,
+    goalMet: true,
+    streak: 4,
+  });
   session.stop();
 });

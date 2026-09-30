@@ -23,7 +23,7 @@ import { XPBadge } from "@/components/xp-badge";
 import { ApiError } from "@/lib/api";
 import { getArticle, type ArticleDetail } from "@/lib/articles";
 import { useAuth } from "@/lib/auth";
-import { formatNumber } from "@/lib/format";
+import { formatDays, formatNumber } from "@/lib/format";
 import { scrollProgress } from "@/lib/reading";
 import { useReadingSession, type SessionGains } from "@/lib/use-reading-session";
 import { colors, fontFamily, spacing } from "@/theme";
@@ -37,9 +37,10 @@ function goBack() {
 }
 
 // Card do fim da leitura: único lugar do leitor onde a gamificação aparece. Entra com fade e
-// leve subida, exceto com "reduzir movimento" ligado.
+// leve subida, e a imagem da ofensiva com um pop discreto, exceto com "reduzir movimento" ligado.
 function DoneCard({ wordCount, gains }: { wordCount: number; gains: SessionGains }) {
   const [entrance] = useState(() => new Animated.Value(0));
+  const [pop] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     let active = true;
@@ -47,27 +48,30 @@ function DoneCard({ wordCount, gains }: { wordCount: number; gains: SessionGains
       .catch(() => false)
       .then((reduceMotion) => {
         if (!active) return;
-        if (reduceMotion) entrance.setValue(1);
-        else
-          Animated.timing(entrance, {
-            toValue: 1,
-            duration: 250,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }).start();
+        if (reduceMotion) {
+          entrance.setValue(1);
+          pop.setValue(1);
+        } else {
+          const easing = Easing.out(Easing.cubic);
+          Animated.parallel([
+            Animated.timing(entrance, { toValue: 1, duration: 250, easing, useNativeDriver: true }),
+            Animated.timing(pop, { toValue: 1, duration: 300, easing, useNativeDriver: true }),
+          ]).start();
+        }
       });
     return () => {
       active = false;
     };
-  }, [entrance]);
+  }, [entrance, pop]);
 
   // texto já concluído antes (reaberto) não ganha XP: nada a anunciar
   useEffect(() => {
     if (gains.xp > 0)
       AccessibilityInfo.announceForAccessibility(
-        `Leitura concluída. Mais ${formatNumber(gains.xp)} pontos de experiência`,
+        `Leitura concluída. Mais ${formatNumber(gains.xp)} pontos de experiência` +
+          (gains.goalMet ? `. Ofensiva: ${formatDays(gains.streak)}` : ""),
       );
-  }, [gains.xp]);
+  }, [gains.xp, gains.goalMet, gains.streak]);
 
   return (
     <Animated.View
@@ -92,6 +96,24 @@ function DoneCard({ wordCount, gains }: { wordCount: number; gains: SessionGains
             <AppText variant="small" style={styles.semibold}>
               Meta de hoje cumprida
             </AppText>
+          </View>
+        )}
+        {gains.goalMet && (
+          <View style={styles.doneRow}>
+            <Animated.Image
+              source={require("../../../assets/images/streak.png")}
+              style={[
+                styles.streak,
+                {
+                  transform: [
+                    { scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) },
+                  ],
+                },
+              ]}
+              accessibilityIgnoresInvertColors
+              accessible={false}
+            />
+            <AppText variant="small">Ofensiva: {formatDays(gains.streak)}</AppText>
           </View>
         )}
         <Button
@@ -285,5 +307,6 @@ const styles = StyleSheet.create({
   done: { gap: spacing.xs, marginTop: spacing.lg },
   doneRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.xs },
   semibold: { fontFamily: fontFamily.semibold },
+  streak: { width: 20, height: 20 },
   doneAction: { marginTop: spacing.md },
 });

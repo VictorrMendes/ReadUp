@@ -17,6 +17,9 @@ ZEROS = {
     "words_today": 0,
     "words_total": 0,
     "texts_completed_total": 0,
+    "streak_current": 0,
+    "streak_longest": 0,
+    "streak_active_today": False,
 }
 
 # --- regra pura ---
@@ -191,6 +194,7 @@ def test_summary_sums_days_and_is_isolated_per_user(make_user: MakeUser) -> None
     nothing = client.get("/stats/summary", headers=newcomer_headers).json()
 
     assert mine == {
+        **ZEROS,
         "xp_total": 102,
         "xp_today": 12,
         "words_today": 120,

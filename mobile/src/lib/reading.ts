@@ -14,6 +14,7 @@ export type ProgressResult = {
   completed: boolean;
   xp_gained: number;
   goal_met: boolean;
+  streak: number;
 };
 
 export function saveProgress(

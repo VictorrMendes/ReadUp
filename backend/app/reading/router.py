@@ -11,7 +11,7 @@ from app.auth.security import get_current_user
 from app.db import get_session
 from app.reading.models import ReadingProgress
 from app.reading.rules import credit, progress_percent
-from app.stats.service import add_daily_activity, goal_met_today
+from app.stats.service import add_daily_activity, goal_met_today, streak_status
 from app.users.models import User
 
 router = APIRouter(prefix="/reading", tags=["reading"])
@@ -32,6 +32,7 @@ class ProgressOut(BaseModel):
     completed: bool
     xp_gained: int
     goal_met: bool
+    streak: int
 
 
 @router.post("/progress")
@@ -83,6 +84,7 @@ def save_progress(
 
     xp_gained = add_daily_activity(session, user.id, after - before, seconds, int(completed_now))
     goal_met = goal_met_today(session, user.id)
+    streak = streak_status(session, user.id).streak_current
     session.commit()
     return ProgressOut(
         progress=row.progress,
@@ -91,4 +93,5 @@ def save_progress(
         completed=row.completed_at is not None,
         xp_gained=xp_gained,
         goal_met=goal_met,
+        streak=streak,
     )

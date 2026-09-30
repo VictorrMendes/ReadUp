@@ -7,6 +7,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from app.gamification.models import Streak
+from app.gamification.streak import effective_streak, next_streak
 from app.gamification.xp import DAILY_GOAL_XP, TEXT_COMPLETED_XP, xp_for_words
 from app.goals.service import active_target
 from app.stats.models import DailyStats
@@ -15,8 +17,21 @@ from app.stats.models import DailyStats
 APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "America/Sao_Paulo"))
 
 
-def local_today() -> date:
-    return datetime.now(APP_TIMEZONE).date()
+def local_today(now: datetime | None = None) -> date:
+    """Dia local do app; `now` (com fuso) permite fixar o instante."""
+    return (now or datetime.now(APP_TIMEZONE)).astimezone(APP_TIMEZONE).date()
+
+
+def _count_streak_day(session: Session, user_id: int, today: date) -> None:
+    """Conta `today` na ofensiva. Cria a linha se preciso e a trava até o commit."""
+    session.execute(insert(Streak).values(user_id=user_id).on_conflict_do_nothing())
+    streak = session.scalars(
+        select(Streak).where(Streak.user_id == user_id).with_for_update()
+    ).one()
+    streak.current, streak.longest = next_streak(
+        streak.current, streak.longest, streak.last_active_day, today
+    )
+    streak.last_active_day = today
 
 
 def add_daily_activity(
@@ -66,6 +81,7 @@ def add_daily_activity(
             )
             if flipped is not None:
                 gained += DAILY_GOAL_XP
+                _count_streak_day(session, user_id, today)
     return gained
 
 
@@ -79,7 +95,25 @@ def goal_met_today(session: Session, user_id: int) -> bool:
     )
 
 
-class Summary(BaseModel):
+class StreakStatus(BaseModel):
+    streak_current: int  # efetiva: 0 se quebrou
+    streak_longest: int
+    streak_active_today: bool
+
+
+def streak_status(session: Session, user_id: int) -> StreakStatus:
+    today = local_today()
+    streak = session.get(Streak, user_id)
+    if streak is None:
+        return StreakStatus(streak_current=0, streak_longest=0, streak_active_today=False)
+    return StreakStatus(
+        streak_current=effective_streak(streak.current, streak.last_active_day, today),
+        streak_longest=streak.longest,
+        streak_active_today=streak.last_active_day == today,
+    )
+
+
+class Summary(StreakStatus):
     xp_total: int
     xp_today: int
     words_today: int
@@ -104,4 +138,5 @@ def summary(session: Session, user_id: int) -> Summary:
         words_today=words_today,
         words_total=words_total,
         texts_completed_total=texts_completed_total,
+        **streak_status(session, user_id).model_dump(),
     )
