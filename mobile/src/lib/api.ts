@@ -33,5 +33,6 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
       typeof data?.detail === "string" ? data.detail : "Erro inesperado. Tente novamente.";
     throw new ApiError(response.status, detail);
   }
+  if (response.status === 204) return undefined as T; // sem corpo (ex.: DELETE)
   return (await response.json()) as T;
 }

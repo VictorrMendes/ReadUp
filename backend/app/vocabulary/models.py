@@ -19,3 +19,14 @@ class SavedWord(Base):
         BigInteger, ForeignKey("articles.id", ondelete="SET NULL")
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WordTranslation(Base):
+    """Cache global de traduções (de todos os usuários): cada palavra é buscada fora uma vez só."""
+
+    __tablename__ = "word_translations"
+
+    word: Mapped[str] = mapped_column(Text, primary_key=True)  # já normalizada
+    translation: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(Text, server_default="mymemory")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

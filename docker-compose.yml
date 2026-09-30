@@ -21,6 +21,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://readup:${POSTGRES_PASSWORD}@db:5432/readup
       JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env}
+      MYMEMORY_EMAIL: ${MYMEMORY_EMAIL:-}
     ports:
       - "8000:8000"
     depends_on:

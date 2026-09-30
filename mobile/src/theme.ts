@@ -17,6 +17,7 @@ export const colors = {
   textSecondary: "#64748B",
   border: "#E2E8F0", // cards e divisórias
   borderStrong: "#64748B", // borda de campo de formulário (4.76:1 sobre surface)
+  overlay: "rgba(15, 23, 42, 0.5)", // textPrimary a 50%: fundo escurecido atrás do BottomSheet
 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;

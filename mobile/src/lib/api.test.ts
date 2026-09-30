@@ -37,3 +37,9 @@ test("erro sem JSON usa detail genérico", async () => {
     detail: "Erro inesperado. Tente novamente.",
   });
 });
+
+test("204 sem corpo resolve sem tentar ler JSON", async () => {
+  fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+  await expect(apiFetch("/vocabulary/1", { method: "DELETE" })).resolves.toBeUndefined();
+});

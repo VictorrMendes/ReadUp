@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -8,6 +8,7 @@ import {
   Easing,
   ScrollView,
   StyleSheet,
+  Text,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -19,6 +20,7 @@ import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { IconButton } from "@/components/icon-button";
 import { ProgressBar } from "@/components/progress-bar";
+import { WordPopup } from "@/components/word-popup";
 import { XPBadge } from "@/components/xp-badge";
 import { ApiError } from "@/lib/api";
 import { getArticle, type ArticleDetail } from "@/lib/articles";
@@ -26,6 +28,7 @@ import { useAuth } from "@/lib/auth";
 import { formatDays, formatNumber } from "@/lib/format";
 import { scrollProgress } from "@/lib/reading";
 import { useReadingSession, type SessionGains } from "@/lib/use-reading-session";
+import { sentenceOf, tokenize } from "@/lib/vocabulary";
 import { colors, fontFamily, spacing } from "@/theme";
 
 const READING_MAX_WIDTH = 680;
@@ -35,6 +38,44 @@ function goBack() {
   if (router.canGoBack()) router.back();
   else router.replace("/");
 }
+
+// palavra tocada: onde está (parágrafo e trecho) e o que vai para o WordPopup
+type Selection = { paragraph: number; piece: number; word: string; sentence: string };
+
+// Um parágrafo continua um único texto corrido; cada palavra é um trecho tocável dentro dele.
+// A palavra tocada fica grifada enquanto o painel está aberto.
+const Paragraph = memo(function Paragraph({
+  text,
+  index,
+  selectedPiece,
+  onSelect,
+}: {
+  text: string;
+  index: number;
+  selectedPiece: number | null;
+  onSelect: (selection: Selection) => void;
+}) {
+  return (
+    <AppText variant="reading" style={styles.paragraph}>
+      {tokenize(text).map((piece, i) => {
+        const word = piece.word;
+        if (word === null) return piece.text;
+        return (
+          <Text
+            key={i}
+            suppressHighlighting
+            style={i === selectedPiece && styles.marked}
+            onPress={() =>
+              onSelect({ paragraph: index, piece: i, word, sentence: sentenceOf(text, i) })
+            }
+          >
+            {piece.text}
+          </Text>
+        );
+      })}
+    </AppText>
+  );
+});
 
 // Card do fim da leitura: único lugar do leitor onde a gamificação aparece. Entra com fade e
 // leve subida, e a imagem da ofensiva com um pop discreto, exceto com "reduzir movimento" ligado.
@@ -136,6 +177,7 @@ export default function ArticleScreen() {
   const [error, setError] = useState<{ message: string; notFound: boolean } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [selection, setSelection] = useState<Selection | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scroll = useRef({ offset: 0, content: 0, viewport: 0, resumed: false });
   const { result, gains, reportProgress } = useReadingSession({
@@ -263,9 +305,13 @@ export default function ArticleScreen() {
                 .join(" · ")}
             </AppText>
             {paragraphs?.map((paragraph, index) => (
-              <AppText key={index} variant="reading" style={styles.paragraph}>
-                {paragraph}
-              </AppText>
+              <Paragraph
+                key={index}
+                text={paragraph}
+                index={index}
+                selectedPiece={selection?.paragraph === index ? selection.piece : null}
+                onSelect={setSelection}
+              />
             ))}
             {(article.completed || result?.completed) && (
               <DoneCard wordCount={article.word_count} gains={gains} />
@@ -273,6 +319,13 @@ export default function ArticleScreen() {
           </View>
         </ScrollView>
       )}
+      <WordPopup
+        selection={selection}
+        token={token}
+        articleId={articleId}
+        onClose={() => setSelection(null)}
+        onUnauthorized={signOut}
+      />
     </SafeAreaView>
   );
 }
@@ -304,6 +357,7 @@ const styles = StyleSheet.create({
   column: { width: "100%", maxWidth: READING_MAX_WIDTH },
   meta: { marginTop: spacing.sm, marginBottom: spacing.xl },
   paragraph: { marginBottom: spacing.lg },
+  marked: { backgroundColor: colors.primary100 },
   done: { gap: spacing.xs, marginTop: spacing.lg },
   doneRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.xs },
   semibold: { fontFamily: fontFamily.semibold },

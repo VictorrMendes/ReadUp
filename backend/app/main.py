@@ -11,6 +11,7 @@ from app.goals.router import router as goals_router
 from app.reading.router import router as reading_router
 from app.stats.router import router as stats_router
 from app.users.router import router as users_router
+from app.vocabulary.router import router as vocabulary_router
 
 app = FastAPI(title="ReadUp API")
 app.include_router(auth_router)
@@ -19,6 +20,7 @@ app.include_router(articles_router)
 app.include_router(reading_router)
 app.include_router(goals_router)
 app.include_router(stats_router)
+app.include_router(vocabulary_router)
 
 
 @app.get("/health")
