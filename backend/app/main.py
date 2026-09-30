@@ -11,6 +11,7 @@ from app.auth.router import router as auth_router
 from app.books.router import UploadSizeLimit
 from app.books.router import router as books_router
 from app.db import get_session
+from app.gamification.router import router as achievements_router
 from app.goals.router import router as goals_router
 from app.news.fetch import start_periodic
 from app.reading.router import router as reading_router
@@ -37,6 +38,7 @@ app.include_router(goals_router)
 app.include_router(stats_router)
 app.include_router(vocabulary_router)
 app.include_router(books_router)
+app.include_router(achievements_router)
 
 
 @app.get("/health")

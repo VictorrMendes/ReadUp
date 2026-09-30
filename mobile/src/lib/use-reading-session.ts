@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 
+import type { AchievementRef } from "@/lib/achievements";
 import { ApiError } from "@/lib/api";
 import { saveProgress, type ProgressResult } from "@/lib/reading";
 
 export const SEND_EVERY_SECONDS = 15;
 const MAX_SECONDS_PER_SEND = 120; // limite do backend
 
-// Acumulado da sessão: XP somado das respostas, se a meta do dia foi cumprida durante ela e a
-// ofensiva da última resposta.
-export type SessionGains = { xp: number; goalMet: boolean; streak: number };
+// Acumulado da sessão: XP somado das respostas, se a meta do dia foi cumprida durante ela, a
+// ofensiva da última resposta e as conquistas desbloqueadas (sem repetir).
+export type SessionGains = {
+  xp: number;
+  goalMet: boolean;
+  streak: number;
+  achievements: AchievementRef[];
+};
 
 type SessionOptions = {
   send: (progress: number, seconds: number) => Promise<ProgressResult>;
@@ -40,6 +46,7 @@ export function startReadingSession({
   // terminar o atual, em vez de ser descartado; open vence se algum dos pedidos era abertura
   let queued: { open: boolean } | null = null;
   let xp = 0;
+  const achievements: AchievementRef[] = [];
   // estado da meta na primeira resposta (abertura): só conta como cumprida na sessão se virou depois
   let goalMetBefore: boolean | null = null;
 
@@ -60,10 +67,14 @@ export function startReadingSession({
       const result = await send(progress, seconds);
       xp += result.xp_gained;
       goalMetBefore ??= result.goal_met;
+      for (const unlocked of result.achievements_unlocked) {
+        if (!achievements.some((a) => a.id === unlocked.id)) achievements.push(unlocked);
+      }
       onResult(result, {
         xp,
         goalMet: result.goal_met && !goalMetBefore,
         streak: result.streak,
+        achievements: [...achievements],
       });
       sentProgress = Math.max(sentProgress, progress);
     } catch (e) {
@@ -120,7 +131,12 @@ export function useReadingSession({
   onUnauthorized: () => void;
 }) {
   const [result, setResult] = useState<ProgressResult | null>(null);
-  const [gains, setGains] = useState<SessionGains>({ xp: 0, goalMet: false, streak: 0 });
+  const [gains, setGains] = useState<SessionGains>({
+    xp: 0,
+    goalMet: false,
+    streak: 0,
+    achievements: [],
+  });
   const session = useRef<ReadingSession | null>(null);
   // progresso reportado antes da sessão começar (ex.: onLayout de texto que cabe na tela)
   const reportedEarly = useRef(0);

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.articles.models import Article
 from app.books.models import Book
+from app.gamification.achievements import Metrics
 from app.gamification.models import Streak
 from app.gamification.streak import effective_streak, next_streak
 from app.gamification.xp import DAILY_GOAL_XP, completion_xp, xp_for_words
@@ -214,6 +215,25 @@ def summary(session: Session, user_id: int) -> Summary:
         books_started=books_started,
         books_completed=books_completed,
         **streak_status(session, user_id).model_dump(),
+    )
+
+
+def achievement_metrics(session: Session, user_id: int) -> Metrics:
+    """Métricas das conquistas (só crescem) numa query: somas de daily_stats + maior ofensiva."""
+    longest = select(Streak.longest).where(Streak.user_id == user_id).scalar_subquery()
+    words, texts, goal_days, longest_streak = session.execute(
+        select(
+            func.coalesce(func.sum(DailyStats.words_read), 0),
+            func.coalesce(func.sum(DailyStats.texts_completed), 0),
+            func.count().filter(DailyStats.goal_met),
+            func.coalesce(longest, 0),
+        ).where(DailyStats.user_id == user_id)
+    ).one()
+    return Metrics(
+        words_total=words,
+        texts_completed=texts,
+        goal_days=goal_days,
+        longest_streak=longest_streak,
     )
 
 

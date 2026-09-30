@@ -1,3 +1,4 @@
+import type { AchievementRef } from "@/lib/achievements";
 import { apiFetch } from "@/lib/api";
 
 // Fração lida (0–1) a partir da rolagem. Conteúdo que cabe na tela conta como lido por inteiro.
@@ -15,6 +16,7 @@ export type ProgressResult = {
   xp_gained: number;
   goal_met: boolean;
   streak: number;
+  achievements_unlocked: AchievementRef[]; // desbloqueadas neste envio
 };
 
 export function saveProgress(

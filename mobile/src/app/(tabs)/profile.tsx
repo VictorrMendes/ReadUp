@@ -3,6 +3,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, StyleSheet, View } from "react-native";
 
+import { AchievementBadge } from "@/components/achievement-badge";
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
@@ -10,6 +11,7 @@ import { OptionList } from "@/components/option-list";
 import { Skeleton } from "@/components/skeleton";
 import { StatTile } from "@/components/stat-tile";
 import { WeekChart } from "@/components/week-chart";
+import { getAchievements, type Achievement } from "@/lib/achievements";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatNumber } from "@/lib/format";
@@ -26,7 +28,17 @@ function initials(name: string): string {
   return letters.map((part) => part[0].toUpperCase()).join("");
 }
 
-type Stats = { summary: StatsSummary; daily: DailyStat[] };
+// null em achievements: só essa chamada falhou (a seção some, o resto aparece)
+type Stats = { summary: StatsSummary; daily: DailyStat[]; achievements: Achievement[] | null };
+
+// 2 colunas: em 360dp, 3 cortariam títulos como "Cinquenta mil palavras"
+function pairs<T>(items: T[]): T[][] {
+  return items.reduce<T[][]>((rows, item, i) => {
+    if (i % 2 === 0) rows.push([item]);
+    else rows[rows.length - 1].push(item);
+    return rows;
+  }, []);
+}
 
 export default function ProfileScreen() {
   const { token, user, signOut, refreshUser } = useAuth();
@@ -41,10 +53,14 @@ export default function ProfileScreen() {
     useCallback(() => {
       if (!token) return;
       let active = true;
-      Promise.all([getSummary(token), getDaily(token, 7)])
-        .then(([summary, daily]) => {
+      Promise.all([
+        getSummary(token),
+        getDaily(token, 7),
+        getAchievements(token).catch(() => null),
+      ])
+        .then(([summary, daily, achievements]) => {
           if (!active) return;
-          setStats({ summary, daily });
+          setStats({ summary, daily, achievements });
           setStatsError(false);
         })
         .catch((e: unknown) => {
@@ -159,6 +175,27 @@ export default function ProfileScreen() {
             </View>
           </View>
           <WeekChart days={stats.daily} />
+          {stats.achievements && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <AppText variant="h3" accessibilityRole="header">
+                  Conquistas
+                </AppText>
+                <AppText variant="small" color="textSecondary">
+                  {stats.achievements.filter((a) => a.unlocked).length} de{" "}
+                  {stats.achievements.length}
+                </AppText>
+              </View>
+              {pairs(stats.achievements).map((row) => (
+                <View key={row[0].id} style={styles.gridRow}>
+                  {row.map((achievement) => (
+                    <AchievementBadge key={achievement.id} achievement={achievement} />
+                  ))}
+                  {row.length === 1 && <View style={styles.filler} />}
+                </View>
+              ))}
+            </View>
+          )}
         </>
       )}
 
@@ -219,6 +256,8 @@ const styles = StyleSheet.create({
   section: { gap: spacing.md },
   grid: { gap: spacing.md },
   gridRow: { flexDirection: "row", gap: spacing.md },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  filler: { flex: 1 },
   streakIcon: { width: 20, height: 20 },
   saved: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   signOut: { marginTop: spacing.xl },

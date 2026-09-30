@@ -10,9 +10,15 @@ from app.articles.models import Article
 from app.auth.security import get_current_user
 from app.books.access import visible_to
 from app.db import get_session
+from app.gamification.achievements import newly_unlocked
 from app.reading.models import ReadingProgress
 from app.reading.rules import credit, progress_percent
-from app.stats.service import add_daily_activity, goal_met_today, streak_status
+from app.stats.service import (
+    achievement_metrics,
+    add_daily_activity,
+    goal_met_today,
+    streak_status,
+)
 from app.users.models import User
 
 router = APIRouter(prefix="/reading", tags=["reading"])
@@ -26,6 +32,12 @@ class ProgressIn(BaseModel):
     seconds: int = Field(ge=0, le=120)
 
 
+class AchievementRef(BaseModel):
+    id: str
+    title: str
+    icon: str
+
+
 class ProgressOut(BaseModel):
     progress: int
     words_read: int
@@ -34,6 +46,7 @@ class ProgressOut(BaseModel):
     xp_gained: int
     goal_met: bool
     streak: int
+    achievements_unlocked: list[AchievementRef]  # desbloqueadas NESTA chamada
 
 
 @router.post("/progress")
@@ -95,8 +108,18 @@ def save_progress(
     if completed_now:
         row.completed_at = now
 
+    # conquistas só mudam quando há palavras novas ou conclusão (a meta e a ofensiva só viram
+    # por palavras): sem avanço, nada de queries extras. A linha do usuário está travada, então
+    # antes/depois não se misturam com outro envio do mesmo usuário.
+    advanced = after > before or completed_now
+    metrics_before = achievement_metrics(session, user.id) if advanced else None
     xp_gained = add_daily_activity(
         session, user.id, after - before, seconds, word_count if completed_now else None
+    )
+    unlocked = (
+        newly_unlocked(metrics_before, achievement_metrics(session, user.id))
+        if metrics_before
+        else []
     )
     goal_met = goal_met_today(session, user.id)
     streak = streak_status(session, user.id).streak_current
@@ -109,4 +132,7 @@ def save_progress(
         xp_gained=xp_gained,
         goal_met=goal_met,
         streak=streak,
+        achievements_unlocked=[
+            AchievementRef(id=a.id, title=a.title, icon=a.icon) for a in unlocked
+        ],
     )

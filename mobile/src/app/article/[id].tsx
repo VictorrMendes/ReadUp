@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { achievementIcon } from "@/components/achievement-badge";
 import { AppText } from "@/components/app-text";
 import { Attribution } from "@/components/attribution";
 import { Button } from "@/components/button";
@@ -33,6 +34,7 @@ import { sentenceOf, tokenize } from "@/lib/vocabulary";
 import { colors, fontFamily, spacing } from "@/theme";
 
 const READING_MAX_WIDTH = 680;
+const MAX_ACHIEVEMENT_LINES = 2; // conquistas novas no card; o resto vira "e mais N"
 
 function goBack() {
   // aberto por deep link não há histórico: volta para as abas
@@ -93,6 +95,10 @@ function DoneCard({
 }) {
   const [entrance] = useState(() => new Animated.Value(0));
   const [pop] = useState(() => new Animated.Value(0));
+  // texto (não o array, que muda a cada resposta) para o anúncio não repetir
+  const achievementTitles = gains.achievements.map((a) => a.title).join(", ");
+  const shownAchievements = gains.achievements.slice(0, MAX_ACHIEVEMENT_LINES);
+  const moreAchievements = gains.achievements.length - shownAchievements.length;
 
   useEffect(() => {
     let active = true;
@@ -121,9 +127,10 @@ function DoneCard({
     if (gains.xp > 0)
       AccessibilityInfo.announceForAccessibility(
         `Leitura concluída. Mais ${formatNumber(gains.xp)} pontos de experiência` +
-          (gains.goalMet ? `. Ofensiva: ${formatDays(gains.streak)}` : ""),
+          (gains.goalMet ? `. Ofensiva: ${formatDays(gains.streak)}` : "") +
+          (achievementTitles ? `. Conquista: ${achievementTitles}` : ""),
       );
-  }, [gains.xp, gains.goalMet, gains.streak]);
+  }, [gains.xp, gains.goalMet, gains.streak, achievementTitles]);
 
   return (
     <Animated.View
@@ -167,6 +174,21 @@ function DoneCard({
             />
             <AppText variant="small">Ofensiva: {formatDays(gains.streak)}</AppText>
           </View>
+        )}
+        {shownAchievements.map((achievement) => (
+          <View key={achievement.id} style={styles.doneRow}>
+            <Ionicons
+              name={achievementIcon(achievement.icon)}
+              size={16}
+              color={colors.primary600}
+            />
+            <AppText variant="small">Conquista: {achievement.title}</AppText>
+          </View>
+        ))}
+        {moreAchievements > 0 && (
+          <AppText variant="small" style={styles.doneRow}>
+            e mais {moreAchievements}
+          </AppText>
         )}
         {bookId === null ? (
           <Button

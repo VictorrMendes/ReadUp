@@ -13,6 +13,7 @@ const OK: ProgressResult = {
   xp_gained: 0,
   goal_met: false,
   streak: 0,
+  achievements_unlocked: [],
 };
 
 let appState: AppStateStatus = "active";
@@ -46,7 +47,7 @@ test("abre a sessão com 0 s ao iniciar e envia após 15 s com o maior progresso
   const { session, send, onResult } = start();
   await advance(0);
   expect(send).toHaveBeenCalledWith(0, 0);
-  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, goalMet: false, streak: 0 });
+  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, goalMet: false, streak: 0, achievements: [] });
 
   session.report(40.7);
   session.report(25); // voltar a rolagem não reduz
@@ -139,13 +140,13 @@ test("soma o xp_gained dos envios e marca a meta cumprida durante a sessão", as
   const { session, onResult } = start(send);
 
   await advance(15);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, goalMet: false, streak: 0 });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, goalMet: false, streak: 0, achievements: [] });
   await advance(15);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, goalMet: true, streak: 0 });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, goalMet: true, streak: 0, achievements: [] });
   await advance(15);
 
   expect(send).toHaveBeenCalledTimes(4);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, goalMet: true, streak: 0 });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, goalMet: true, streak: 0, achievements: [] });
   session.stop();
 });
 
@@ -155,7 +156,7 @@ test("meta já cumprida antes da sessão não conta como cumprida nela", async (
 
   await advance(15);
 
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, goalMet: false, streak: 0 });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, goalMet: false, streak: 0, achievements: [] });
   session.stop();
 });
 
@@ -171,6 +172,7 @@ test("expõe a ofensiva da última resposta", async () => {
     xp: 0,
     goalMet: false,
     streak: 3,
+    achievements: [],
   });
   await advance(15);
 
@@ -178,6 +180,7 @@ test("expõe a ofensiva da última resposta", async () => {
     xp: 56,
     goalMet: true,
     streak: 4,
+    achievements: [],
   });
   session.stop();
 });
@@ -228,5 +231,28 @@ test("voltar do background durante um envio pendente ainda reabre a sessão", as
   await advance(0);
   expect(send).toHaveBeenCalledTimes(3);
   expect(send).toHaveBeenLastCalledWith(0, 0); // abertura não foi descartada
+  session.stop();
+});
+
+test("acumula as conquistas das respostas sem repetir", async () => {
+  const words1k = { id: "words-1k", title: "Mil palavras", icon: "reader-outline" };
+  const firstText = { id: "first-text", title: "Primeira leitura", icon: "book-outline" };
+  const send = jest
+    .fn()
+    .mockResolvedValueOnce(OK) // abertura
+    .mockResolvedValueOnce({ ...OK, achievements_unlocked: [words1k] })
+    .mockResolvedValueOnce({ ...OK, achievements_unlocked: [words1k, firstText] })
+    .mockResolvedValue(OK);
+  const { session, onResult } = start(send);
+  session.report(10);
+
+  await advance(15);
+  expect(onResult.mock.lastCall[1].achievements).toEqual([words1k]);
+  session.report(20);
+  await advance(15);
+  expect(onResult.mock.lastCall[1].achievements).toEqual([words1k, firstText]);
+  session.report(30);
+  await advance(15); // resposta sem conquistas: mantém o acumulado
+  expect(onResult.mock.lastCall[1].achievements).toEqual([words1k, firstText]);
   session.stop();
 });
