@@ -12,7 +12,9 @@ COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
 
-RUN useradd --create-home readup
+# uid fixo: é o dono esperado de ./storage/pdfs montado pelo compose em hosts Linux
+RUN useradd --create-home --uid 1000 readup \
+    && mkdir -p /app/storage/pdfs && chown readup /app/storage/pdfs
 USER readup
 
 EXPOSE 8000

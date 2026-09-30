@@ -16,15 +16,17 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     throw new Error("EXPO_PUBLIC_API_URL não definida. Copie mobile/.env.example para mobile/.env.");
   }
   const { body, token, headers, ...init } = options;
+  // multipart: o fetch monta o Content-Type com o boundary; JSON nos demais casos
+  const form = body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
-      ...(body !== undefined && { "Content-Type": "application/json" }),
+      ...(body !== undefined && !form && { "Content-Type": "application/json" }),
       ...(token && { Authorization: `Bearer ${token}` }),
       ...headers,
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : form ? body : JSON.stringify(body),
   });
 
   if (!response.ok) {

@@ -13,7 +13,7 @@ type Props = {
   // ilustração de 120dp no lugar do ícone
   illustration?: ImageSourcePropType;
   // próximo passo sugerido
-  action?: { label: string; onPress: () => void };
+  action?: { label: string; onPress: () => void; loading?: boolean };
 };
 
 export function EmptyState({ icon, title, message, illustration, action }: Props) {
@@ -40,6 +40,7 @@ export function EmptyState({ icon, title, message, illustration, action }: Props
           variant="secondary"
           title={action.label}
           onPress={action.onPress}
+          loading={action.loading}
           style={styles.action}
         />
       )}

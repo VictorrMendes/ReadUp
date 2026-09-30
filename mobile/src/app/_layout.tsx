@@ -47,6 +47,7 @@ function RootNavigator() {
       <Stack.Protected guard={!!user && onboarded}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="article/[id]" />
+        <Stack.Screen name="book/[id]" />
       </Stack.Protected>
       <Stack.Protected guard={!!user && !onboarded}>
         <Stack.Screen name="onboarding" />

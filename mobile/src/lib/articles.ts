@@ -15,6 +15,7 @@ export type ArticleSummary = {
   // progresso do usuário logado
   progress: number;
   completed: boolean;
+  book_id: number | null; // capítulo de um PDF do usuário; null = texto do feed
 };
 
 // ponytail: sem paginação; limit 50 cobre o catálogo atual
@@ -23,7 +24,10 @@ export function listArticles(token: string, level?: Level): Promise<ArticleSumma
   return apiFetch<ArticleSummary[]>(`/articles${query}`, { token });
 }
 
-export type ArticleDetail = ArticleSummary & { content: string };
+export type ArticleDetail = ArticleSummary & {
+  content: string;
+  next_article_id: number | null; // próximo capítulo do mesmo livro
+};
 
 export function getArticle(token: string, id: number): Promise<ArticleDetail> {
   return apiFetch<ArticleDetail>(`/articles/${id}`, { token });

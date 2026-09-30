@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, defer
 from app.articles.models import Article
 from app.articles.text import estimated_minutes
 from app.auth.security import get_current_user
+from app.books.access import visible_to
 from app.db import get_session
 from app.reading.models import ReadingProgress
 from app.users.models import User
@@ -30,6 +31,7 @@ class ArticleSummary(BaseModel):
     word_count: int
     source: str
     published_at: datetime | None
+    book_id: int | None  # capítulo de livro do usuário; null = texto do feed
     # progresso do usuário logado (0/false se nunca leu)
     progress: int = 0
     completed: bool = False
@@ -42,6 +44,7 @@ class ArticleSummary(BaseModel):
 
 class ArticleDetail(ArticleSummary):
     content: str
+    next_article_id: int | None = None  # próximo capítulo do mesmo livro
 
 
 def _with_progress(user: User) -> Select[Article, int, datetime | None]:
@@ -65,11 +68,15 @@ def list_articles(
     stmt = _with_progress(user).options(defer(Article.content)).limit(limit).offset(offset)
     if in_progress:
         # "continuar lendo": começados e não terminados, o mais recente primeiro
-        stmt = stmt.where(ReadingProgress.progress > 0, ReadingProgress.progress < 100).order_by(
-            ReadingProgress.updated_at.desc()
-        )
+        # inclui capítulos dos livros do próprio usuário
+        stmt = stmt.where(
+            ReadingProgress.progress > 0, ReadingProgress.progress < 100, visible_to(user.id)
+        ).order_by(ReadingProgress.updated_at.desc())
     else:
-        stmt = stmt.order_by(Article.published_at.desc().nulls_last(), Article.id.desc())
+        # feed/Explorar: só textos públicos
+        stmt = stmt.where(Article.book_id.is_(None)).order_by(
+            Article.published_at.desc().nulls_last(), Article.id.desc()
+        )
     if level:
         stmt = stmt.where(Article.difficulty == level)
     if category:
@@ -86,10 +93,24 @@ def list_articles(
 def get_article(
     article_id: int, user: CurrentUser, session: Annotated[Session, Depends(get_session)]
 ) -> ArticleDetail:
-    row = session.execute(_with_progress(user).where(Article.id == article_id)).first()
-    if row is None:
+    row = session.execute(
+        _with_progress(user).where(Article.id == article_id, visible_to(user.id))
+    ).first()
+    if row is None:  # inexistente ou capítulo de outro usuário: mesma resposta
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Texto não encontrado")
     article, progress, completed_at = row
+    next_article_id = None
+    if article.book_id is not None:
+        next_article_id = session.scalar(
+            select(Article.id)
+            .where(Article.book_id == article.book_id, Article.position > article.position)
+            .order_by(Article.position)
+            .limit(1)
+        )
     return ArticleDetail.model_validate(article).model_copy(
-        update={"progress": progress or 0, "completed": completed_at is not None}
+        update={
+            "progress": progress or 0,
+            "completed": completed_at is not None,
+            "next_article_id": next_article_id,
+        }
     )

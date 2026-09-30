@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.articles.models import Article
 from app.auth.security import get_current_user
+from app.books.access import visible_to
 from app.db import get_session
 from app.reading.models import ReadingProgress
 from app.reading.rules import credit, progress_percent
@@ -41,7 +42,10 @@ def save_progress(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
 ) -> ProgressOut:
-    word_count = session.scalar(select(Article.word_count).where(Article.id == body.article_id))
+    # capítulo de outro usuário: mesmo 404 de inexistente, sem gravar nada
+    word_count = session.scalar(
+        select(Article.word_count).where(Article.id == body.article_id, visible_to(user.id))
+    )
     if word_count is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Texto não encontrado")
 

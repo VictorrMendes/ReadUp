@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 
 import app.articles.models
+import app.books.models
 import app.gamification.models
 import app.goals.models
 import app.reading.models

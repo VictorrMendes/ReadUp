@@ -1,6 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, Identity, Integer, Text, func
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Integer,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -23,3 +32,8 @@ class Article(Base):
     word_count: Mapped[int] = mapped_column(Integer)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # capítulo de um PDF do usuário (privado); NULL = texto público do feed
+    book_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("books.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int | None] = mapped_column(Integer)  # ordem do capítulo no livro

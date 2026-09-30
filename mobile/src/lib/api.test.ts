@@ -43,3 +43,16 @@ test("204 sem corpo resolve sem tentar ler JSON", async () => {
 
   await expect(apiFetch("/vocabulary/1", { method: "DELETE" })).resolves.toBeUndefined();
 });
+
+test("FormData vai como está, sem Content-Type JSON (o fetch põe o boundary)", async () => {
+  respond(201, JSON.stringify({ id: 1 }));
+  const form = new FormData();
+  form.append("file", "conteúdo");
+
+  await apiFetch("/books", { method: "POST", token: "abc", body: form });
+
+  const [, init] = fetchMock.mock.calls.at(-1);
+  expect(init.body).toBe(form);
+  expect(init.headers["Content-Type"]).toBeUndefined();
+  expect(init.headers.Authorization).toBe("Bearer abc");
+});

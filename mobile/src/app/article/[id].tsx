@@ -79,7 +79,17 @@ const Paragraph = memo(function Paragraph({
 
 // Card do fim da leitura: único lugar do leitor onde a gamificação aparece. Entra com fade e
 // leve subida, e a imagem da ofensiva com um pop discreto, exceto com "reduzir movimento" ligado.
-function DoneCard({ wordCount, gains }: { wordCount: number; gains: SessionGains }) {
+function DoneCard({
+  wordCount,
+  gains,
+  bookId,
+  nextArticleId,
+}: {
+  wordCount: number;
+  gains: SessionGains;
+  bookId: number | null;
+  nextArticleId: number | null;
+}) {
   const [entrance] = useState(() => new Animated.Value(0));
   const [pop] = useState(() => new Animated.Value(0));
 
@@ -157,12 +167,37 @@ function DoneCard({ wordCount, gains }: { wordCount: number; gains: SessionGains
             <AppText variant="small">Ofensiva: {formatDays(gains.streak)}</AppText>
           </View>
         )}
-        <Button
-          variant="secondary"
-          title="Voltar ao Explorar"
-          onPress={() => router.navigate("/explore")}
-          style={styles.doneAction}
-        />
+        {bookId === null ? (
+          <Button
+            variant="secondary"
+            title="Voltar ao Explorar"
+            onPress={() => router.navigate("/explore")}
+            style={styles.doneAction}
+          />
+        ) : (
+          <>
+            {nextArticleId !== null && (
+              <Button
+                title="Próximo capítulo"
+                onPress={() =>
+                  router.replace({
+                    pathname: "/article/[id]",
+                    params: { id: String(nextArticleId) },
+                  })
+                }
+                style={styles.doneAction}
+              />
+            )}
+            <Button
+              variant="secondary"
+              title="Voltar ao livro"
+              onPress={() =>
+                router.navigate({ pathname: "/book/[id]", params: { id: String(bookId) } })
+              }
+              style={nextArticleId === null && styles.doneAction}
+            />
+          </>
+        )}
       </Card>
     </Animated.View>
   );
@@ -314,7 +349,12 @@ export default function ArticleScreen() {
               />
             ))}
             {(article.completed || result?.completed) && (
-              <DoneCard wordCount={article.word_count} gains={gains} />
+              <DoneCard
+                wordCount={article.word_count}
+                gains={gains}
+                bookId={article.book_id}
+                nextArticleId={article.next_article_id}
+              />
             )}
           </View>
         </ScrollView>

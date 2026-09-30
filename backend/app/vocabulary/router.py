@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.articles.models import Article
 from app.auth.security import get_current_user
+from app.books.access import visible_to
 from app.db import get_session
 from app.users.models import User
 from app.vocabulary import translator
@@ -123,7 +124,7 @@ def save_word(
     user_id = user.id
     word = _normalized(body.word)
     if body.article_id is not None and not session.scalar(
-        select(exists().where(Article.id == body.article_id))
+        select(exists().where(Article.id == body.article_id, visible_to(user_id)))
     ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Texto não encontrado")
 
