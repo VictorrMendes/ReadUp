@@ -80,10 +80,12 @@ export default function LibraryScreen() {
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) void signOut();
       // 413/422/409 trazem a mensagem do backend (tamanho, não é PDF, sem texto, limite)
-      else
-        setImportError(
-          e instanceof ApiError ? e.detail : "Não foi possível enviar o PDF. Tente novamente.",
-        );
+      else if (e instanceof ApiError) setImportError(e.detail);
+      else {
+        // falha antes de chegar ao servidor (arquivo, rede, fetch): o erro real só no log de dev
+        if (__DEV__) console.warn("Importar PDF falhou antes do envio:", e);
+        setImportError("Não foi possível enviar o PDF. Tente novamente.");
+      }
     } finally {
       setImporting(false);
     }
