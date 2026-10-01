@@ -19,6 +19,35 @@ export type ProgressResult = {
   achievements_unlocked: AchievementRef[]; // desbloqueadas neste envio
 };
 
+// teto de crédito do servidor (app/reading/rules.py): 10 palavras por segundo de leitura
+export const MAX_WORDS_PER_SECOND = 10;
+
+/** Segundos de leitura que ainda faltam para o servidor creditar o texto inteiro. */
+export function secondsToComplete(wordCount: number, wordsRead: number): number {
+  return Math.max(1, Math.ceil(Math.max(0, wordCount - wordsRead) / MAX_WORDS_PER_SECOND));
+}
+
+// resultado do último toque em "Concluir leitura" (null = ainda não tocou)
+export type FinishAttempt =
+  | { kind: "too-fast"; wordCount: number; wordsRead: number }
+  | { kind: "error" }
+  | null;
+
+export type EndState =
+  | { kind: "done" } // já concluído: "Você já concluiu este texto" + ações
+  | { kind: "ready" } // botão "Concluir leitura"
+  | { kind: "too-fast"; seconds: number } // botão + "leia com calma: faltam ~N s"
+  | { kind: "error" }; // botão + "Não foi possível confirmar agora"
+
+/** O que mostrar no fim do texto. `done`: concluído ao abrir ou pelo toque nesta sessão. */
+export function endState(done: boolean, attempt: FinishAttempt): EndState {
+  if (done) return { kind: "done" };
+  if (attempt?.kind === "too-fast")
+    return { kind: "too-fast", seconds: secondsToComplete(attempt.wordCount, attempt.wordsRead) };
+  if (attempt?.kind === "error") return { kind: "error" };
+  return { kind: "ready" };
+}
+
 export function saveProgress(
   token: string,
   body: { article_id: number; progress: number; seconds: number },

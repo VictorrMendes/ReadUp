@@ -47,7 +47,7 @@ test("abre a sessão com 0 s ao iniciar e envia após 15 s com o maior progresso
   const { session, send, onResult } = start();
   await advance(0);
   expect(send).toHaveBeenCalledWith(0, 0);
-  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, goalMet: false, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, words: 0, goalMet: false, streak: 0, achievements: [] });
 
   session.report(40.7);
   session.report(25); // voltar a rolagem não reduz
@@ -140,13 +140,13 @@ test("soma o xp_gained dos envios e marca a meta cumprida durante a sessão", as
   const { session, onResult } = start(send);
 
   await advance(15);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, goalMet: false, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, words: 0, goalMet: false, streak: 0, achievements: [] });
   await advance(15);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, goalMet: true, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, words: 0, goalMet: true, streak: 0, achievements: [] });
   await advance(15);
 
   expect(send).toHaveBeenCalledTimes(4);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, goalMet: true, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, words: 0, goalMet: true, streak: 0, achievements: [] });
   session.stop();
 });
 
@@ -156,7 +156,7 @@ test("meta já cumprida antes da sessão não conta como cumprida nela", async (
 
   await advance(15);
 
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, goalMet: false, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, words: 0, goalMet: false, streak: 0, achievements: [] });
   session.stop();
 });
 
@@ -170,6 +170,7 @@ test("expõe a ofensiva da última resposta", async () => {
   await advance(0);
   expect(onResult).toHaveBeenLastCalledWith(expect.anything(), {
     xp: 0,
+    words: 0,
     goalMet: false,
     streak: 3,
     achievements: [],
@@ -178,6 +179,7 @@ test("expõe a ofensiva da última resposta", async () => {
 
   expect(onResult).toHaveBeenLastCalledWith(expect.anything(), {
     xp: 56,
+    words: 0,
     goalMet: true,
     streak: 4,
     achievements: [],
@@ -254,5 +256,80 @@ test("acumula as conquistas das respostas sem repetir", async () => {
   session.report(30);
   await advance(15); // resposta sem conquistas: mantém o acumulado
   expect(onResult.mock.lastCall[1].achievements).toEqual([words1k, firstText]);
+  session.stop();
+});
+
+test("finish() envia já com progresso 100 e devolve a resposta desse envio", async () => {
+  const done = { ...OK, progress: 100, completed: true, words_credited: 90 };
+  const send = jest.fn().mockResolvedValueOnce(OK).mockResolvedValue(done);
+  const { session } = start(send);
+  await advance(6);
+
+  const result = await session.finish();
+
+  expect(send).toHaveBeenLastCalledWith(100, 6);
+  expect(result).toEqual(done);
+  session.stop();
+});
+
+test("finish() com um envio em andamento entra na fila e responde depois dele", async () => {
+  const opening = pending();
+  const done = { ...OK, progress: 100, completed: true };
+  const send = jest.fn().mockReturnValueOnce(opening.promise).mockResolvedValue(done);
+  const { session } = start(send);
+  await advance(4);
+
+  const finished = session.finish();
+  await advance(0);
+  expect(send).toHaveBeenCalledTimes(1); // espera a abertura terminar
+
+  opening.resolve();
+  await expect(finished).resolves.toEqual(done);
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(send).toHaveBeenLastCalledWith(100, 4);
+  session.stop();
+});
+
+test("finish() sem tempo novo ainda envia (o toque sempre confirma)", async () => {
+  const send = jest.fn().mockResolvedValue(OK);
+  const { session } = start(send);
+  await advance(0);
+
+  await session.finish();
+  await session.finish(); // de novo, sem segundos acumulados
+
+  expect(send).toHaveBeenCalledTimes(3);
+  expect(send).toHaveBeenLastCalledWith(100, 0);
+  session.stop();
+});
+
+test("finish() com falha de rede rejeita e mantém os segundos", async () => {
+  const send = jest
+    .fn()
+    .mockResolvedValueOnce(OK)
+    .mockRejectedValueOnce(new TypeError("Network request failed"))
+    .mockResolvedValue(OK);
+  const { session } = start(send);
+  await advance(5);
+
+  await expect(session.finish()).rejects.toThrow("Network request failed");
+  await session.finish();
+
+  expect(send).toHaveBeenLastCalledWith(100, 5); // os 5 s voltaram para o próximo envio
+  session.stop();
+});
+
+test("gains soma as palavras creditadas", async () => {
+  const send = jest
+    .fn()
+    .mockResolvedValueOnce(OK)
+    .mockResolvedValue({ ...OK, words_credited: 40 });
+  const { session, onResult } = start(send);
+  session.report(20);
+  await advance(15);
+  session.report(40);
+  await advance(15);
+
+  expect(onResult.mock.lastCall[1].words).toBe(80);
   session.stop();
 });

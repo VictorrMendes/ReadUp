@@ -11,12 +11,15 @@ import { StyleSheet, View } from "react-native";
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { useReduceMotion } from "@/lib/use-reduce-motion";
 import { colors, spacing } from "@/theme";
 
 void SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { token, user, userError, isLoading, refreshUser } = useAuth();
+  const reduceMotion = useReduceMotion();
+  const authAnimation = reduceMotion ? "none" : "fade";
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
   // se a fonte falhar, segue com a fonte do sistema em vez de travar no splash
   const ready = !isLoading && (fontsLoaded || !!fontError);
@@ -52,9 +55,10 @@ function RootNavigator() {
       <Stack.Protected guard={!!user && !onboarded}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
+      {/* login ↔ cadastro: fade nativo (a arte é a mesma, só o cartão parece trocar) */}
       <Stack.Protected guard={!token}>
-        <Stack.Screen name="login" />
-        <Stack.Screen name="register" />
+        <Stack.Screen name="login" options={{ animation: authAnimation }} />
+        <Stack.Screen name="register" options={{ animation: authAnimation }} />
       </Stack.Protected>
     </Stack>
   );

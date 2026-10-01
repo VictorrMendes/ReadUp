@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  AccessibilityInfo,
   Animated,
   StyleSheet,
   type DimensionValue,
@@ -8,6 +7,7 @@ import {
   type ViewStyle,
 } from "react-native";
 
+import { useReduceMotion } from "@/lib/use-reduce-motion";
 import { colors, radius } from "@/theme";
 
 type Props = { height: DimensionValue; width?: DimensionValue; style?: StyleProp<ViewStyle> };
@@ -16,20 +16,10 @@ type Props = { height: DimensionValue; width?: DimensionValue; style?: StyleProp
 // "reduzir movimento" ligado. Decorativo: quem o usa anuncia "Carregando".
 export function Skeleton({ height, width = "100%", style }: Props) {
   const [opacity] = useState(() => new Animated.Value(1));
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((enabled) => active && setReduceMotion(enabled))
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion !== false) return; // ligado ou ainda desconhecido: sem pulso
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, { toValue: 0.5, duration: 700, useNativeDriver: true }),
@@ -44,7 +34,7 @@ export function Skeleton({ height, width = "100%", style }: Props) {
     <Animated.View
       importantForAccessibility="no-hide-descendants"
       accessibilityElementsHidden
-      style={[styles.block, { height, width, opacity: reduceMotion ? 1 : opacity }, style]}
+      style={[styles.block, { height, width, opacity: reduceMotion === false ? opacity : 1 }, style]}
     />
   );
 }

@@ -19,7 +19,9 @@ type Props = {
 };
 
 // Medalha compacta. O estado não depende só da cor: bloqueada mostra cadeado e progresso;
-// desbloqueada, check e "Desbloqueada".
+// desbloqueada, check e "Desbloqueada". Desbloqueada em dourado (recompensa): medalha gold100 com
+// borda gold600, ícone e texto gold700 (4.84:1 sobre gold50).
+// ponytail: medalha de 56 com mini-selo de cadeado e grade de 3 colunas ficam para a onda 2.
 export function AchievementBadge({ achievement: a }: Props) {
   const unit = achievementUnit(a.id, a.target);
   const label = a.unlocked
@@ -32,11 +34,11 @@ export function AchievementBadge({ achievement: a }: Props) {
       accessible
       accessibilityLabel={label}
     >
-      <View style={styles.circle}>
+      <View style={[styles.circle, a.unlocked ? styles.circleUnlocked : styles.circleLocked]}>
         <Ionicons
           name={achievementIcon(a.icon)}
           size={20}
-          color={a.unlocked ? colors.primary600 : colors.textSecondary}
+          color={a.unlocked ? colors.gold700 : colors.textSecondary}
         />
       </View>
       <AppText variant="small" style={styles.title} maxFontSizeMultiplier={compactFontScale}>
@@ -46,11 +48,11 @@ export function AchievementBadge({ achievement: a }: Props) {
         <Ionicons
           name={a.unlocked ? "checkmark-circle" : "lock-closed"}
           size={12}
-          color={a.unlocked ? colors.primary600 : colors.textSecondary}
+          color={a.unlocked ? colors.gold700 : colors.textSecondary}
         />
         <AppText
           variant="caption"
-          color={a.unlocked ? "primary600" : "textSecondary"}
+          color={a.unlocked ? "gold700" : "textSecondary"}
           maxFontSizeMultiplier={compactFontScale}
         >
           {a.unlocked
@@ -70,7 +72,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
   },
-  unlocked: { backgroundColor: colors.primary100, borderColor: colors.primary100 },
+  unlocked: { backgroundColor: colors.gold50, borderColor: colors.gold200 },
   locked: { backgroundColor: colors.background, borderColor: colors.border },
   circle: {
     width: 36,
@@ -78,8 +80,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
+    borderWidth: 2,
   },
+  circleUnlocked: { backgroundColor: colors.gold100, borderColor: colors.gold600 },
+  circleLocked: { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
   title: { fontFamily: fontFamily.semibold },
   status: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
 });

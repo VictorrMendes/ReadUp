@@ -42,3 +42,15 @@ export async function getContinueReading(token: string): Promise<ArticleSummary 
   });
   return latest ?? null;
 }
+
+/**
+ * "Próximo texto" / "Ler um texto": o primeiro não concluído da lista (já filtrada pelo nível),
+ * fora o texto atual. Prefere um que a pessoa ainda não começou.
+ */
+export function pickNextText(
+  articles: ArticleSummary[],
+  excludeId?: number,
+): ArticleSummary | undefined {
+  const open = articles.filter((a) => !a.completed && a.id !== excludeId);
+  return open.find((a) => a.progress === 0) ?? open[0];
+}

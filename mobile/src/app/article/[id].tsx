@@ -2,10 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { memo, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo,
   ActivityIndicator,
-  Animated,
-  Easing,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,26 +12,25 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { achievementIcon } from "@/components/achievement-badge";
 import { AppText } from "@/components/app-text";
 import { Attribution } from "@/components/attribution";
 import { Button } from "@/components/button";
-import { Card } from "@/components/card";
+import { CompletionScreen } from "@/components/completion-screen";
 import { IconButton } from "@/components/icon-button";
 import { ProgressBar } from "@/components/progress-bar";
 import { WordPopup } from "@/components/word-popup";
-import { XPBadge } from "@/components/xp-badge";
 import { ApiError } from "@/lib/api";
-import { getArticle, type ArticleDetail } from "@/lib/articles";
+import { getArticle, listArticles, pickNextText, type ArticleDetail } from "@/lib/articles";
 import { useAuth } from "@/lib/auth";
-import { formatDays, formatNumber } from "@/lib/format";
-import { scrollProgress } from "@/lib/reading";
-import { useReadingSession, type SessionGains } from "@/lib/use-reading-session";
+import { formatNumber } from "@/lib/format";
+import { getGoal, type GoalStatus } from "@/lib/preferences";
+import { endState, scrollProgress, type EndState, type FinishAttempt } from "@/lib/reading";
+import { getSummary } from "@/lib/stats";
+import { useReadingSession } from "@/lib/use-reading-session";
 import { sentenceOf, tokenize } from "@/lib/vocabulary";
 import { colors, fontFamily, spacing } from "@/theme";
 
 const READING_MAX_WIDTH = 680;
-const MAX_ACHIEVEMENT_LINES = 2; // conquistas novas no card; o resto vira "e mais N"
 
 function goBack() {
   // aberto por deep link não há histórico: volta para as abas
@@ -80,165 +76,84 @@ const Paragraph = memo(function Paragraph({
   );
 });
 
-// Card do fim da leitura: único lugar do leitor onde a gamificação aparece. Entra com fade e
-// leve subida, e a imagem da ofensiva com um pop discreto, exceto com "reduzir movimento" ligado.
-function DoneCard({
-  wordCount,
-  gains,
-  bookId,
-  nextArticleId,
+// Fim do texto: "Concluir leitura" (a pessoa marca a conclusão; o servidor valida), a resposta
+// gentil quando foi rápido demais, ou "Você já concluiu este texto" com as ações.
+function TextEnd({
+  state,
+  finishing,
+  onFinish,
+  primaryAction,
+  secondaryAction,
 }: {
-  wordCount: number;
-  gains: SessionGains;
-  bookId: number | null;
-  nextArticleId: number | null;
+  state: EndState;
+  finishing: boolean;
+  onFinish: () => void;
+  primaryAction: NavAction | null;
+  secondaryAction: NavAction;
 }) {
-  const [entrance] = useState(() => new Animated.Value(0));
-  const [pop] = useState(() => new Animated.Value(0));
-  // texto (não o array, que muda a cada resposta) para o anúncio não repetir
-  const achievementTitles = gains.achievements.map((a) => a.title).join(", ");
-  const shownAchievements = gains.achievements.slice(0, MAX_ACHIEVEMENT_LINES);
-  const moreAchievements = gains.achievements.length - shownAchievements.length;
-
-  useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .catch(() => false)
-      .then((reduceMotion) => {
-        if (!active) return;
-        if (reduceMotion) {
-          entrance.setValue(1);
-          pop.setValue(1);
-        } else {
-          const easing = Easing.out(Easing.cubic);
-          Animated.parallel([
-            Animated.timing(entrance, { toValue: 1, duration: 250, easing, useNativeDriver: true }),
-            Animated.timing(pop, { toValue: 1, duration: 300, easing, useNativeDriver: true }),
-          ]).start();
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [entrance, pop]);
-
-  // texto já concluído antes (reaberto) não ganha XP: nada a anunciar
-  useEffect(() => {
-    if (gains.xp > 0)
-      AccessibilityInfo.announceForAccessibility(
-        `Leitura concluída. Mais ${formatNumber(gains.xp)} pontos de experiência` +
-          (gains.goalMet ? `. Ofensiva: ${formatDays(gains.streak)}` : "") +
-          (achievementTitles ? `. Conquista: ${achievementTitles}` : ""),
-      );
-  }, [gains.xp, gains.goalMet, gains.streak, achievementTitles]);
-
+  if (state.kind === "done") {
+    return (
+      <View style={styles.end}>
+        <View style={styles.inline}>
+          <Ionicons name="checkmark-circle" size={20} color={colors.success600} />
+          <AppText style={styles.semibold}>Você já concluiu este texto</AppText>
+        </View>
+        {primaryAction && (
+          <Button title={primaryAction.label} onPress={primaryAction.onPress} />
+        )}
+        <Button
+          variant={primaryAction ? "ghost" : "primary"}
+          title={secondaryAction.label}
+          onPress={secondaryAction.onPress}
+        />
+      </View>
+    );
+  }
   return (
-    <Animated.View
-      style={{
-        opacity: entrance,
-        transform: [
-          { translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [spacing.md, 0] }) },
-        ],
-      }}
-    >
-      <Card style={styles.done}>
-        <AppText variant="h3">Leitura concluída</AppText>
-        <AppText color="textSecondary">{formatNumber(wordCount)} palavras lidas</AppText>
-        {gains.xp > 0 && (
-          <View style={styles.doneRow}>
-            <XPBadge xp={gains.xp} gain />
-          </View>
-        )}
-        {gains.goalMet && (
-          <View style={styles.doneRow}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.success600} />
-            <AppText variant="small" style={styles.semibold}>
-              Meta de hoje cumprida
-            </AppText>
-          </View>
-        )}
-        {gains.goalMet && (
-          <View style={styles.doneRow}>
-            <Animated.Image
-              source={require("../../../assets/images/streak.png")}
-              style={[
-                styles.streak,
-                {
-                  transform: [
-                    { scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) },
-                  ],
-                },
-              ]}
-              accessibilityIgnoresInvertColors
-              accessible={false}
-            />
-            <AppText variant="small">Ofensiva: {formatDays(gains.streak)}</AppText>
-          </View>
-        )}
-        {shownAchievements.map((achievement) => (
-          <View key={achievement.id} style={styles.doneRow}>
-            <Ionicons
-              name={achievementIcon(achievement.icon)}
-              size={16}
-              color={colors.primary600}
-            />
-            <AppText variant="small">Conquista: {achievement.title}</AppText>
-          </View>
-        ))}
-        {moreAchievements > 0 && (
-          <AppText variant="small" style={styles.doneRow}>
-            e mais {moreAchievements}
-          </AppText>
-        )}
-        {bookId === null ? (
-          <Button
-            variant="secondary"
-            title="Voltar ao Explorar"
-            onPress={() => router.navigate("/explore")}
-            style={styles.doneAction}
-          />
-        ) : (
-          <>
-            {nextArticleId !== null && (
-              <Button
-                title="Próximo capítulo"
-                onPress={() =>
-                  router.replace({
-                    pathname: "/article/[id]",
-                    params: { id: String(nextArticleId) },
-                  })
-                }
-                style={styles.doneAction}
-              />
-            )}
-            <Button
-              variant="secondary"
-              title="Voltar ao livro"
-              onPress={() =>
-                router.navigate({ pathname: "/book/[id]", params: { id: String(bookId) } })
-              }
-              style={nextArticleId === null && styles.doneAction}
-            />
-          </>
-        )}
-      </Card>
-    </Animated.View>
+    <View style={styles.end}>
+      <AppText variant="h3" accessibilityRole="header">
+        Você chegou ao fim
+      </AppText>
+      <Button title="Concluir leitura" icon="checkmark" loading={finishing} onPress={onFinish} />
+      {state.kind === "too-fast" && (
+        <AppText variant="small" color="textSecondary" accessibilityLiveRegion="polite">
+          Você passou rápido por este texto. Para contar como lido, leia com calma: faltam cerca
+          de {formatNumber(state.seconds)} {state.seconds === 1 ? "segundo" : "segundos"} de
+          leitura.
+        </AppText>
+      )}
+      {state.kind === "error" && (
+        <AppText variant="small" color="textSecondary" accessibilityLiveRegion="polite">
+          Não foi possível confirmar agora. Tente de novo.
+        </AppText>
+      )}
+    </View>
   );
 }
+
+type NavAction = { label: string; onPress: () => void };
 
 export default function ArticleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const articleId = Number(id);
   const validId = Number.isInteger(articleId) && articleId > 0;
-  const { token, signOut } = useAuth();
+  const { token, user, signOut } = useAuth();
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [error, setError] = useState<{ message: string; notFound: boolean } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [progress, setProgress] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
+  // conclusão marcada pelo toque em "Concluir leitura" (o servidor valida)
+  const [finishedHere, setFinishedHere] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [attempt, setAttempt] = useState<FinishAttempt>(null);
+  const [celebration, setCelebration] = useState<{
+    goal: GoalStatus | null;
+    longest: number | null;
+  } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scroll = useRef({ offset: 0, content: 0, viewport: 0, resumed: false });
-  const { result, gains, reportProgress } = useReadingSession({
+  const { gains, reportProgress, finish } = useReadingSession({
     token,
     articleId,
     enabled: article !== null,
@@ -303,7 +218,69 @@ export default function ArticleScreen() {
     setReloadKey((k) => k + 1);
   }
 
+  // "Concluir leitura": envio imediato (progresso 100 + segundos acumulados) e a resposta decide
+  async function onFinish() {
+    if (!token || !article) return;
+    setFinishing(true);
+    setAttempt(null);
+    try {
+      const response = await finish();
+      if (!response.completed) {
+        setAttempt({ kind: "too-fast", wordCount: article.word_count, wordsRead: response.words_read });
+        return;
+      }
+      // dados da meta e do recorde para a tela cheia; falha só esconde essas partes
+      const [goal, summary] = await Promise.all([
+        getGoal(token).catch(() => null),
+        getSummary(token).catch(() => null),
+      ]);
+      setFinishedHere(true);
+      setCelebration({ goal, longest: summary?.streak_longest ?? null });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) void signOut();
+      else setAttempt({ kind: "error" });
+    } finally {
+      setFinishing(false);
+    }
+  }
+
+  async function openNextText() {
+    if (!token) return;
+    try {
+      const level = user?.english_level ?? undefined;
+      const next = pickNextText(await listArticles(token, level), articleId);
+      if (next) {
+        router.replace({ pathname: "/article/[id]", params: { id: String(next.id) } });
+        return;
+      }
+    } catch {
+      // sem lista: cai no Explorar
+    }
+    router.navigate("/explore");
+  }
+
   const notFound = !validId || error?.notFound;
+  const done = !!article?.completed || finishedHere;
+  const bookId = article?.book_id ?? null;
+  const nextChapter = article?.next_article_id ?? null;
+  const primaryAction: NavAction | null =
+    bookId === null
+      ? { label: "Próximo texto", onPress: () => void openNextText() }
+      : nextChapter !== null
+        ? {
+            label: "Próximo capítulo",
+            onPress: () =>
+              router.replace({ pathname: "/article/[id]", params: { id: String(nextChapter) } }),
+          }
+        : null;
+  const secondaryAction: NavAction =
+    bookId === null
+      ? { label: "Voltar ao Explorar", onPress: () => router.navigate("/explore") }
+      : {
+          label: "Voltar ao livro",
+          onPress: () =>
+            router.navigate({ pathname: "/book/[id]", params: { id: String(bookId) } }),
+        };
   const paragraphs = article?.content
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -357,11 +334,21 @@ export default function ArticleScreen() {
             <AppText variant="h1" accessibilityRole="header">
               {article.title}
             </AppText>
-            <AppText variant="small" color="textSecondary" style={styles.meta}>
-              {[article.category, article.difficulty, `${article.estimated_minutes} min`]
-                .filter(Boolean)
-                .join(" · ")}
-            </AppText>
+            <View style={styles.meta}>
+              <AppText variant="small" color="textSecondary">
+                {[article.category, article.difficulty, `${article.estimated_minutes} min`]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </AppText>
+              {done && (
+                <View style={styles.inline}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success600} />
+                  <AppText variant="small" style={styles.semibold}>
+                    Concluído
+                  </AppText>
+                </View>
+              )}
+            </View>
             {paragraphs?.map((paragraph, index) => (
               <Paragraph
                 key={index}
@@ -374,16 +361,42 @@ export default function ArticleScreen() {
             {article.attribution && (
               <Attribution text={article.attribution} url={article.source_url} />
             )}
-            {(article.completed || result?.completed) && (
-              <DoneCard
-                wordCount={article.word_count}
-                gains={gains}
-                bookId={article.book_id}
-                nextArticleId={article.next_article_id}
-              />
-            )}
+            <TextEnd
+              state={endState(done, attempt)}
+              finishing={finishing}
+              onFinish={() => void onFinish()}
+              primaryAction={primaryAction}
+              secondaryAction={secondaryAction}
+            />
           </View>
         </ScrollView>
+      )}
+      {article && (
+        <CompletionScreen
+          visible={celebration !== null}
+          onClose={() => setCelebration(null)}
+          articleTitle={article.title}
+          minutes={article.estimated_minutes}
+          gains={gains}
+          goal={celebration?.goal ?? null}
+          longestStreak={celebration?.longest ?? null}
+          primaryAction={
+            primaryAction && {
+              label: primaryAction.label,
+              onPress: () => {
+                setCelebration(null);
+                primaryAction.onPress();
+              },
+            }
+          }
+          secondaryAction={{
+            label: secondaryAction.label,
+            onPress: () => {
+              setCelebration(null);
+              secondaryAction.onPress();
+            },
+          }}
+        />
       )}
       <WordPopup
         selection={selection}
@@ -421,12 +434,24 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
   },
   column: { width: "100%", maxWidth: READING_MAX_WIDTH },
-  meta: { marginTop: spacing.sm, marginBottom: spacing.xl },
+  meta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  inline: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   paragraph: { marginBottom: spacing.lg },
   marked: { backgroundColor: colors.primary100 },
-  done: { gap: spacing.xs, marginTop: spacing.lg },
-  doneRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.xs },
+  // fim do texto: separado do último parágrafo por uma divisória, sem cara de gamificação
+  end: {
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    paddingTop: spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
   semibold: { fontFamily: fontFamily.semibold },
-  streak: { width: 20, height: 20 },
-  doneAction: { marginTop: spacing.md },
 });

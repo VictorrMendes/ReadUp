@@ -8,10 +8,11 @@ import { saveProgress, type ProgressResult } from "@/lib/reading";
 export const SEND_EVERY_SECONDS = 15;
 const MAX_SECONDS_PER_SEND = 120; // limite do backend
 
-// Acumulado da sessão: XP somado das respostas, se a meta do dia foi cumprida durante ela, a
-// ofensiva da última resposta e as conquistas desbloqueadas (sem repetir).
+// Acumulado da sessão: XP e palavras creditadas somados das respostas, se a meta do dia foi
+// cumprida durante ela, a ofensiva da última resposta e as conquistas desbloqueadas (sem repetir).
 export type SessionGains = {
   xp: number;
+  words: number;
   goalMet: boolean;
   streak: number;
   achievements: AchievementRef[];
@@ -44,21 +45,30 @@ export function startReadingSession({
   let inFlight = false;
   // pedido de envio que chegou durante outro envio (stop, background, reabertura): roda ao
   // terminar o atual, em vez de ser descartado; open vence se algum dos pedidos era abertura
-  let queued: { open: boolean } | null = null;
+  let queued: { open: boolean; force: boolean } | null = null;
+  // quem pediu "Concluir leitura" e espera a resposta desse envio
+  let finishers: { resolve: (r: ProgressResult) => void; reject: (e: unknown) => void }[] = [];
   let xp = 0;
+  let words = 0;
   const achievements: AchievementRef[] = [];
   // estado da meta na primeira resposta (abertura): só conta como cumprida na sessão se virou depois
   let goalMetBefore: boolean | null = null;
 
   // open: envio de abertura (0 s), mesmo sem nada novo a enviar
-  async function flush(open = false) {
+  // force: envio do "Concluir leitura", mesmo sem tempo ou avanço novos (resolve os finishers)
+  async function flush(open = false, force = false) {
     if (inFlight) {
-      queued = { open: open || (queued?.open ?? false) };
+      queued = {
+        open: open || (queued?.open ?? false),
+        force: force || (queued?.force ?? false),
+      };
       return;
     }
     const seconds = open ? 0 : Math.min(MAX_SECONDS_PER_SEND, pendingSeconds);
     const progress = maxProgress;
-    if (!open && seconds === 0 && progress <= sentProgress) return;
+    if (!open && !force && seconds === 0 && progress <= sentProgress) return;
+    const waiting = force ? finishers : [];
+    if (force) finishers = [];
 
     inFlight = true;
     pendingSeconds -= seconds;
@@ -66,27 +76,31 @@ export function startReadingSession({
     try {
       const result = await send(progress, seconds);
       xp += result.xp_gained;
+      words += result.words_credited;
       goalMetBefore ??= result.goal_met;
       for (const unlocked of result.achievements_unlocked) {
         if (!achievements.some((a) => a.id === unlocked.id)) achievements.push(unlocked);
       }
       onResult(result, {
         xp,
+        words,
         goalMet: result.goal_met && !goalMetBefore,
         streak: result.streak,
         achievements: [...achievements],
       });
       sentProgress = Math.max(sentProgress, progress);
+      waiting.forEach((f) => f.resolve(result));
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) onUnauthorized();
       // rede/servidor: devolve os segundos; outros 4xx não vão melhorar com retry
       else if (!(e instanceof ApiError) || e.status >= 500) pendingSeconds += seconds;
+      waiting.forEach((f) => f.reject(e));
     } finally {
       inFlight = false;
       if (queued) {
         const next = queued;
         queued = null;
-        void flush(next.open);
+        void flush(next.open, next.force);
       }
     }
   }
@@ -111,6 +125,17 @@ export function startReadingSession({
       subscription.remove();
       void flush();
     },
+    /**
+     * "Concluir leitura": envia já (progresso 100 e os segundos acumulados) e devolve a resposta
+     * desse envio. Com outro envio em andamento, entra na fila e roda assim que ele terminar.
+     */
+    finish(): Promise<ProgressResult> {
+      maxProgress = 100;
+      return new Promise((resolve, reject) => {
+        finishers.push({ resolve, reject });
+        void flush(false, true);
+      });
+    },
   };
 }
 
@@ -133,6 +158,7 @@ export function useReadingSession({
   const [result, setResult] = useState<ProgressResult | null>(null);
   const [gains, setGains] = useState<SessionGains>({
     xp: 0,
+    words: 0,
     goalMet: false,
     streak: 0,
     achievements: [],
@@ -166,5 +192,11 @@ export function useReadingSession({
     session.current?.report(percent);
   }, []);
 
-  return { result, gains, reportProgress };
+  const finish = useCallback(
+    (): Promise<ProgressResult> =>
+      session.current?.finish() ?? Promise.reject(new Error("Sessão de leitura inativa")),
+    [],
+  );
+
+  return { result, gains, reportProgress, finish };
 }

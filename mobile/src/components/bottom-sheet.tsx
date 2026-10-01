@@ -1,16 +1,9 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
-import {
-  AccessibilityInfo,
-  Animated,
-  Easing,
-  Modal,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 
-import { colors, radius, spacing } from "@/theme";
+import { useReduceMotion } from "@/lib/use-reduce-motion";
+import { colors, motion, radius, spacing } from "@/theme";
 
 type Props = { visible: boolean; onClose: () => void; children: ReactNode };
 
@@ -23,28 +16,24 @@ const RISE = 48; // quanto o painel sobe ao entrar
 export function BottomSheet({ visible, onClose, children }: Props) {
   const insets = useContext(SafeAreaInsetsContext);
   const [entrance] = useState(() => new Animated.Value(0));
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || reduceMotion === null) return;
+    if (reduceMotion) {
+      entrance.setValue(1);
+      return;
+    }
     entrance.setValue(0);
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .catch(() => false)
-      .then((reduceMotion) => {
-        if (!active) return;
-        if (reduceMotion) entrance.setValue(1);
-        else
-          Animated.timing(entrance, {
-            toValue: 1,
-            duration: 250,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }).start();
-      });
-    return () => {
-      active = false;
-    };
-  }, [visible, entrance]);
+    const animation = Animated.timing(entrance, {
+      toValue: 1,
+      duration: 250,
+      easing: motion.easing,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [visible, entrance, reduceMotion]);
 
   return (
     <Modal

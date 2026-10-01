@@ -34,5 +34,5 @@ const styles = StyleSheet.create({
   // leitor: barra discreta; raio = metade da altura, como no default
   thin: { height: 4, borderRadius: 2 },
   // meta diária: barra mais presente
-  large: { height: 10, borderRadius: 5 },
+  large: { height: 12, borderRadius: 6 },
 });

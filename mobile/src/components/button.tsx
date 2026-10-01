@@ -1,7 +1,10 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
+import type { ComponentProps } from "react";
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  View,
   type PressableProps,
   type StyleProp,
   type ViewStyle,
@@ -33,6 +36,7 @@ const VARIANTS: Record<
 
 type Props = Omit<PressableProps, "children" | "style"> & {
   title: string;
+  icon?: ComponentProps<typeof Ionicons>["name"]; // ícone antes do título (decorativo)
   variant?: Variant;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -40,6 +44,7 @@ type Props = Omit<PressableProps, "children" | "style"> & {
 
 export function Button({
   title,
+  icon,
   variant = "primary",
   loading = false,
   disabled,
@@ -52,6 +57,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={title} // o ícone é decorativo: o nome é só o título
       android_ripple={variant === "secondary" || variant === "ghost" ? ripple : undefined}
       {...props}
       disabled={inactive}
@@ -72,9 +78,12 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={colors[v.text]} />
       ) : (
-        <AppText color={v.text} style={styles.label}>
-          {title}
-        </AppText>
+        <View style={styles.content}>
+          {icon && <Ionicons name={icon} size={18} color={colors[v.text]} />}
+          <AppText color={v.text} style={styles.label}>
+            {title}
+          </AppText>
+        </View>
       )}
     </Pressable>
   );
@@ -89,6 +98,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: radius.md,
   },
+  content: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   label: { fontFamily: fontFamily.semibold },
   pressed: { opacity: 0.85 },
   inactive: { opacity: 0.6 },

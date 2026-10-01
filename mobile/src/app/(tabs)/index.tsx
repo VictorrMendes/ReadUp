@@ -1,48 +1,85 @@
 import { router, useFocusEffect } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Image, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
-import { DailyGoal } from "@/components/daily-goal";
-import { Highlight } from "@/components/highlight";
+import { DailyGoal, goalAction } from "@/components/daily-goal";
+import { NextAchievementCard } from "@/components/next-achievement-card";
 import { ReadingCard } from "@/components/reading-card";
 import { Skeleton } from "@/components/skeleton";
 import { StreakCard } from "@/components/streak-card";
 import { XPBadge } from "@/components/xp-badge";
+import { getAchievements, nextAchievement, type Achievement } from "@/lib/achievements";
 import { ApiError } from "@/lib/api";
-import { getContinueReading, type ArticleSummary } from "@/lib/articles";
+import {
+  getContinueReading,
+  listArticles,
+  pickNextText,
+  type ArticleSummary,
+} from "@/lib/articles";
 import { useAuth } from "@/lib/auth";
+import { formatLongDate, formatNumber } from "@/lib/format";
 import { getGoal, type GoalStatus } from "@/lib/preferences";
-import { getSummary, type StatsSummary } from "@/lib/stats";
-import { colors, spacing } from "@/theme";
+import { getDaily, getSummary, type DailyStat, type StatsSummary } from "@/lib/stats";
+import { colors, fontFamily, spacing } from "@/theme";
+
+// arte do herói: 390×280 (escala pela largura); os cartões começam 64dp antes do fim dela
+const HERO_RATIO = 280 / 390;
+const CARD_OVERLAP = 64;
 
 type HomeData = {
   goal: GoalStatus;
   continueReading: ArticleSummary | null;
+  suggestion: ArticleSummary | null; // sem texto em andamento: o próximo do nível da pessoa
+  // opcionais: falha só deles esconde a parte que depende deles
   summary: StatsSummary | null;
+  week: DailyStat[] | null;
+  achievements: Achievement[] | null;
 };
+
+/** Linha do herói abaixo do "Olá" (design-v3 5.1). */
+function heroMessage(goal: GoalStatus | undefined): string | null {
+  if (!goal || goal.target === null) return null;
+  if (goal.completed) return "Meta de hoje cumprida. Bom trabalho!";
+  if (goal.words_today === 0) return "Que tal um texto curto agora?";
+  return `Faltam ${formatNumber(goal.remaining)} palavras para fechar a meta.`;
+}
+
+function openArticle(id: number) {
+  router.push({ pathname: "/article/[id]", params: { id: String(id) } });
+}
 
 export default function HomeScreen() {
   const { token, user, signOut } = useAuth();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [focused, setFocused] = useState(true);
 
   // recarrega ao voltar para a aba: reflete a leitura recém-feita
   useFocusEffect(
     useCallback(() => {
-      if (!token) return;
+      setFocused(true);
+      if (!token) return () => setFocused(false);
       let active = true;
+      const level = user?.english_level ?? undefined;
       Promise.all([
         getGoal(token),
         getContinueReading(token),
-        // falha só do resumo não derruba a tela: somem o XP e a ofensiva
         getSummary(token).catch(() => null),
+        getDaily(token, 7).catch(() => null),
+        getAchievements(token).catch(() => null),
       ])
-        .then(([goal, continueReading, summary]) => {
+        .then(async ([goal, continueReading, summary, week, achievements]) => {
+          const suggestion = continueReading
+            ? null
+            : (pickNextText(await listArticles(token, level).catch(() => [])) ?? null);
           if (!active) return;
-          setData({ goal, continueReading, summary });
+          setData({ goal, continueReading, suggestion, summary, week, achievements });
           setError(null);
         })
         .catch((e: unknown) => {
@@ -51,88 +88,126 @@ export default function HomeScreen() {
         });
       return () => {
         active = false;
+        setFocused(false);
       };
-    }, [token, signOut]),
+    }, [token, user?.english_level, signOut]),
   );
 
   const goal = data?.goal;
   const summary = data?.summary;
+  const heroHeight = width * HERO_RATIO;
+  const message = heroMessage(goal);
+  const next = data?.achievements ? nextAchievement(data.achievements) : undefined;
+  const readTarget = data?.continueReading ?? data?.suggestion ?? null;
+  const action = goal
+    ? {
+        ...goalAction(goal.completed, !!data?.continueReading),
+        onPress: () => (readTarget ? openArticle(readTarget.id) : router.navigate("/explore")),
+      }
+    : undefined;
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <View
-            style={styles.greeting}
-            accessible
-            accessibilityRole="header"
-            accessibilityLabel={`Olá, ${user?.name ?? ""}`}
-          >
-            <AppText variant="h1">Olá, </AppText>
-            <Highlight variant="h1">{user?.name ?? ""}</Highlight>
+    <View style={styles.screen}>
+      {/* conteúdo sob a status bar: ícones claros só enquanto o Início está na frente */}
+      <StatusBar style={focused ? "light" : "dark"} />
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Image
+          source={require("@/assets/images/home-hero.png")}
+          style={[styles.heroArt, { width, height: heroHeight }]}
+          resizeMode="cover"
+          accessible={false}
+          accessibilityIgnoresInvertColors
+        />
+        <View
+          style={[
+            styles.hero,
+            { paddingTop: insets.top + spacing.lg, minHeight: heroHeight - CARD_OVERLAP },
+          ]}
+        >
+          <View style={styles.heroRow}>
+            <AppText variant="small" color="surface" style={styles.semibold}>
+              {formatLongDate(new Date())}
+            </AppText>
+            {summary && <XPBadge xp={summary.xp_total} onHero />}
           </View>
-          {summary && <XPBadge xp={summary.xp_total} />}
+          <AppText variant="h1" color="surface" accessibilityRole="header">
+            Olá, {user?.name ?? ""}
+          </AppText>
+          {message && (
+            <AppText color="surface" style={styles.heroMessage}>
+              {message}
+            </AppText>
+          )}
         </View>
 
-        {error && !data ? (
-          <AppText variant="small" color="textSecondary">
-            {error}
-          </AppText>
-        ) : !data ? (
-          <View accessible accessibilityLabel="Carregando">
-            <Skeleton height={148} />
-          </View>
-        ) : (
-          <>
-            {goal?.target != null && (
-              <DailyGoal
-                target={goal.target}
-                wordsToday={goal.words_today}
-                remaining={goal.remaining}
-                completed={goal.completed}
-              />
-            )}
-
-            {summary && (
-              <StreakCard
-                current={summary.streak_current}
-                longest={summary.streak_longest}
-                activeToday={summary.streak_active_today}
-              />
-            )}
-
-            <View style={styles.section}>
-              <AppText variant="h3" accessibilityRole="header">
-                Continuar lendo
-              </AppText>
-              {data.continueReading ? (
-                <ReadingCard
-                  article={data.continueReading}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/article/[id]",
-                      params: { id: String(data.continueReading?.id) },
-                    })
-                  }
-                />
-              ) : (
-                <>
-                  <AppText color="textSecondary">Nenhum texto em andamento.</AppText>
-                  <Button title="Explorar textos" onPress={() => router.navigate("/explore")} />
-                </>
-              )}
+        <View style={styles.content}>
+          {error && !data ? (
+            <AppText variant="small" color="textSecondary">
+              {error}
+            </AppText>
+          ) : !data ? (
+            <View style={styles.section} accessible accessibilityLabel="Carregando">
+              <Skeleton height={236} />
+              <Skeleton height={148} />
             </View>
-          </>
-        )}
+          ) : (
+            <>
+              {goal?.target != null && (
+                <DailyGoal
+                  target={goal.target}
+                  wordsToday={goal.words_today}
+                  remaining={goal.remaining}
+                  completed={goal.completed}
+                  action={action}
+                />
+              )}
+
+              {summary && (
+                <StreakCard
+                  current={summary.streak_current}
+                  longest={summary.streak_longest}
+                  activeToday={summary.streak_active_today}
+                  week={data.week ?? undefined}
+                />
+              )}
+
+              {next && <NextAchievementCard achievement={next} />}
+
+              <View style={styles.section}>
+                <AppText variant="h3" accessibilityRole="header">
+                  {data.continueReading ? "Continuar lendo" : "Sugerido para você"}
+                </AppText>
+                {readTarget ? (
+                  <ReadingCard article={readTarget} onPress={() => openArticle(readTarget.id)} />
+                ) : (
+                  <>
+                    <AppText color="textSecondary">Você já leu todos os textos do seu nível.</AppText>
+                    <Button title="Explorar textos" onPress={() => router.navigate("/explore")} />
+                  </>
+                )}
+              </View>
+            </>
+          )}
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  container: { padding: spacing.xl, gap: spacing.xl },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  greeting: { flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "flex-end" },
+  screen: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingBottom: spacing.xxl },
+  heroArt: { position: "absolute", top: 0, left: 0 },
+  hero: { paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, gap: spacing.xs },
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  heroMessage: { maxWidth: "64%" },
+  semibold: { fontFamily: fontFamily.semibold },
+  content: { paddingHorizontal: spacing.xl, gap: spacing.lg },
   section: { gap: spacing.md },
 });

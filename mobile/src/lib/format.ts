@@ -17,3 +17,23 @@ export function weekday(isoDate: string): { name: string; letter: string } {
   const name = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
   return { name, letter: name[0] };
 }
+
+const MONTHS = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
+
+// data local do aparelho por extenso: "Terça, 30 de setembro" (sem depender do Intl do Hermes)
+export function formatLongDate(date: Date): string {
+  return `${WEEKDAYS[date.getDay()]}, ${date.getDate()} de ${MONTHS[date.getMonth()]}`;
+}
