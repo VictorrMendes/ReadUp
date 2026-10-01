@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 400">
+<!-- Arte do topo do login/cadastro (390x400 dp). Zona de texto: x 0-210, y 0-270 só com o fundo.
+     A folha com marcador e grifo é a marca do ícone em escala; a parte de baixo fica atrás do cartão. -->
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2=".55" y2="1">
+<stop offset="0" stop-color="#2F6BF0"/>
+<stop offset="1" stop-color="#1D4ED8"/>
+</linearGradient>
+<radialGradient id="glow" cx="340" cy="30" r="170" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#FFFFFF" stop-opacity=".2"/>
+<stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="orb" cx=".35" cy=".3" r=".75">
+<stop offset="0" stop-color="#DBEAFE"/>
+<stop offset=".45" stop-color="#7CA0FA"/>
+<stop offset="1" stop-color="#2563EB"/>
+</radialGradient>
+<filter id="sh" x="-30%" y="-30%" width="160%" height="170%">
+<feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0B2A7A" flood-opacity=".35"/>
+</filter>
+</defs>
+<rect width="390" height="400" fill="url(#bg)"/>
+<rect width="390" height="400" fill="url(#glow)"/>
+<!-- forma orgânica suave atrás do texto (3%: tagline mantém ≥ 4.5:1) -->
+<path d="M-40,40 C40,-10 150,10 170,90 C190,170 100,210 20,230 C-20,240 -40,200 -40,160 Z" fill="#FFFFFF" fill-opacity=".03"/>
+<!-- grifo largo, onda de baixo -->
+<path d="M-20,318 C60,284 140,300 220,282 C300,264 350,236 410,244 L410,400 L-20,400 Z" fill="#FFFFFF" fill-opacity=".06"/>
+<path d="M-20,352 C80,326 170,344 260,320 C320,304 370,296 410,300 L410,400 L-20,400 Z" fill="#1D4ED8" fill-opacity=".55"/>
+<!-- esferas -->
+<circle cx="214" cy="52" r="15" fill="url(#orb)"/>
+<circle cx="232" cy="304" r="22" fill="url(#orb)" opacity=".9"/>
+<circle cx="376" cy="356" r="10" fill="url(#orb)" opacity=".8"/>
+<!-- folhas (marca do ícone em escala) -->
+<g transform="translate(14 0)">
+<rect x="250" y="72" width="176" height="236" rx="24" fill="#DBEAFE" fill-opacity=".28" transform="rotate(-4 338 190)"/>
+<g filter="url(#sh)">
+<rect x="258" y="84" width="170" height="232" rx="24" fill="#FFFFFF" transform="rotate(5 343 200)"/>
+</g>
+<g transform="rotate(5 343 200)">
+<path d="M338,84 L366,84 L366,136 L352,125 L338,136 Z" fill="#1D4ED8" stroke="#1D4ED8" stroke-width="4" stroke-linejoin="round"/>
+<rect x="282" y="148" width="86" height="10" rx="5" fill="#DBEAFE"/>
+<rect x="282" y="176" width="118" height="10" rx="5" fill="#DBEAFE"/>
+<rect x="282" y="204" width="28" height="10" rx="5" fill="#DBEAFE"/>
+<rect x="315" y="195" width="72" height="28" rx="7" fill="#2563EB" fill-opacity=".2" transform="rotate(-2 351 209)"/>
+<rect x="320" y="202" width="62" height="14" rx="7" fill="#2563EB"/>
+<rect x="282" y="232" width="110" height="10" rx="5" fill="#DBEAFE"/>
+<rect x="282" y="260" width="68" height="10" rx="5" fill="#DBEAFE"/>
+</g>
+</g>
+</svg>
