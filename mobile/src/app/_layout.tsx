@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
@@ -66,13 +67,16 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   center: {
     flex: 1,
     alignItems: "center",

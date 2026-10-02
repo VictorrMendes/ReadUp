@@ -2,7 +2,6 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
+import { PressableScale } from "@/components/pressable-scale";
 import { ReadingCard } from "@/components/reading-card";
 import { Skeleton } from "@/components/skeleton";
 import { ApiError } from "@/lib/api";
@@ -21,7 +21,6 @@ import {
   colors,
   compactFontScale,
   fontFamily,
-  pressedScale,
   radius,
   ripple,
   spacing,
@@ -98,7 +97,7 @@ export default function ExploreScreen() {
         {FILTERS.map((option) => {
           const selected = option === level;
           return (
-            <Pressable
+            <PressableScale
               key={option ?? "all"}
               onPress={() => selectLevel(option)}
               accessibilityRole="button"
@@ -107,7 +106,6 @@ export default function ExploreScreen() {
               style={({ pressed }) => [
                 styles.chip,
                 selected && styles.chipSelected,
-                pressed && pressedScale,
                 pressed && !selected && styles.chipPressed,
               ]}
             >
@@ -119,7 +117,7 @@ export default function ExploreScreen() {
               >
                 {option ?? "Todos"}
               </AppText>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>

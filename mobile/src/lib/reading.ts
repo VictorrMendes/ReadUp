@@ -16,6 +16,7 @@ export type ProgressResult = {
   xp_gained: number;
   goal_met: boolean;
   streak: number;
+  streak_active_today: boolean; // mínimo do dia feito: a ofensiva contou hoje
   achievements_unlocked: AchievementRef[]; // desbloqueadas neste envio
 };
 

@@ -1,11 +1,12 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
+import { PressableScale } from "@/components/pressable-scale";
 import { Card } from "@/components/card";
 import { ProgressBar } from "@/components/progress-bar";
 import type { Book } from "@/lib/books";
 import { formatNumber } from "@/lib/format";
-import { pressedScale, radius, ripple, spacing } from "@/theme";
+import { radius, ripple, spacing } from "@/theme";
 
 type Props = {
   book: Pick<Book, "title" | "word_count" | "words_read" | "progress" | "chapter_count" | "page_count">;
@@ -25,12 +26,12 @@ export function BookCard({ book, onPress }: Props) {
     .join(", ");
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       android_ripple={ripple}
-      style={({ pressed }) => [styles.pressable, pressed && pressedScale]}
+      style={({ pressed }) => [styles.pressable]}
     >
       <Card style={styles.card}>
         <AppText variant="h3" numberOfLines={2}>
@@ -53,7 +54,7 @@ export function BookCard({ book, onPress }: Props) {
           {size}
         </AppText>
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 

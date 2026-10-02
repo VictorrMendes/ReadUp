@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
+import { haptic } from "@/lib/haptics";
 import { deleteWord, lookupWord, saveWord } from "@/lib/vocabulary";
 
 import { WordPopup } from "./word-popup";
@@ -10,6 +11,8 @@ jest.mock("@/lib/vocabulary", () => ({
   saveWord: jest.fn(),
   deleteWord: jest.fn(),
 }));
+
+jest.mock("@/lib/haptics", () => ({ haptic: { tap: jest.fn(), select: jest.fn() } }));
 
 const lookup = jest.mocked(lookupWord);
 const save = jest.mocked(saveWord);
@@ -59,6 +62,7 @@ test("mostra a tradução quando disponível", async () => {
   expect(await screen.findByText("casa")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Carregando tradução")).not.toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Salvar palavra" })).toBeEnabled();
+  expect(haptic.tap).not.toHaveBeenCalled(); // erro: sem háptica
 });
 
 test("tradução indisponível ainda permite salvar, com a frase e o texto de origem", async () => {
@@ -70,6 +74,7 @@ test("tradução indisponível ainda permite salvar, com a frase e o texto de or
   await fireEvent.press(screen.getByRole("button", { name: "Salvar palavra" }));
 
   expect(await screen.findByText("Palavra salva")).toBeOnTheScreen();
+  expect(haptic.tap).toHaveBeenCalledTimes(1); // háptica leve junto do check
   expect(save).toHaveBeenCalledWith("token", {
     word: "house",
     article_id: 3,
@@ -100,4 +105,5 @@ test("erro ao salvar mostra aviso e mantém o botão", async () => {
 
   expect(await screen.findByText("Não foi possível salvar. Tente novamente.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Salvar palavra" })).toBeEnabled();
+  expect(haptic.tap).not.toHaveBeenCalled(); // erro: sem háptica
 });

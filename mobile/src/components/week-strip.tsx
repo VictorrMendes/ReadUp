@@ -8,19 +8,22 @@ import { colors, compactFontScale, fontFamily, spacing } from "@/theme";
 
 const CIRCLE = 32;
 
-// Os 7 dias até hoje (o último da lista é hoje). Estado nunca só pela cor: cumprido tem check;
-// hoje pendente é tracejado; dia sem meta é um círculo cinza vazio.
+// Os 7 dias até hoje (o último da lista é hoje). Estado nunca só pela cor: dia mantido tem check
+// (laranja = ofensiva; verde = meta batida também); hoje pendente é tracejado; dia sem leitura é
+// um círculo cinza vazio.
 export function WeekStrip({ days }: { days: DailyStat[] }) {
   const today = days[days.length - 1];
+  const kept = days.filter((d) => d.streak_kept).length;
   const met = days.filter((d) => d.goal_met).length;
   const label =
-    `Últimos ${days.length} dias: meta cumprida em ${met}; ` +
-    (today?.goal_met ? "hoje cumprida" : "hoje pendente");
+    `Últimos ${days.length} dias: leu em ${kept}, meta batida em ${met}; ` +
+    (today?.streak_kept ? "hoje mantida" : "hoje pendente");
 
   return (
     <View style={styles.strip} accessible accessibilityLabel={label}>
       {days.map((d, i) => {
         const isToday = i === days.length - 1;
+        const state = d.goal_met ? "met" : d.streak_kept ? "kept" : isToday ? "pending" : "missed";
         return (
           <View key={d.day} style={styles.column} testID={`day-${d.day}`}>
             <AppText
@@ -32,14 +35,10 @@ export function WeekStrip({ days }: { days: DailyStat[] }) {
             >
               {weekday(d.day).letter}
             </AppText>
-            <View
-              testID={d.goal_met ? "day-met" : isToday ? "day-pending" : "day-missed"}
-              style={[
-                styles.circle,
-                d.goal_met ? styles.met : isToday ? styles.pending : styles.missed,
-              ]}
-            >
-              {d.goal_met && <Ionicons name="checkmark" size={18} color={colors.surface} />}
+            <View testID={`day-${state}`} style={[styles.circle, styles[state]]}>
+              {(state === "met" || state === "kept") && (
+                <Ionicons name="checkmark" size={18} color={colors.surface} />
+              )}
             </View>
           </View>
         );
@@ -60,6 +59,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   met: { backgroundColor: colors.success600 },
+  // streak700: check branco 5.2:1 (o laranja puro daria 2.8:1)
+  kept: { backgroundColor: colors.streak700 },
   pending: {
     backgroundColor: colors.surface,
     borderWidth: 2,

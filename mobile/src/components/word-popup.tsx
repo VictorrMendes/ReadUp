@@ -1,12 +1,14 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import Animated, { ZoomIn } from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Button } from "@/components/button";
 import { Skeleton } from "@/components/skeleton";
 import { ApiError } from "@/lib/api";
+import { haptic } from "@/lib/haptics";
 import { deleteWord, lookupWord, saveWord, type Lookup } from "@/lib/vocabulary";
 import { colors, fontFamily, spacing } from "@/theme";
 
@@ -24,9 +26,12 @@ type Props = {
 // Painel da palavra tocada no leitor: tradução, frase de contexto e salvar/remover, sem tirar o
 // usuário da leitura.
 export function WordPopup({ selection, ...props }: Props) {
+  // a última palavra continua no painel enquanto ele desce ao fechar
+  const [shown, setShown] = useState(selection);
+  if (selection && selection !== shown) setShown(selection);
   return (
     <BottomSheet visible={selection !== null} onClose={props.onClose}>
-      {selection && <Content key={selection.word} selection={selection} {...props} />}
+      {shown && <Content key={shown.word} selection={shown} {...props} />}
     </BottomSheet>
   );
 }
@@ -42,6 +47,8 @@ function Content({
   // id da palavra salva (do lookup ou do salvar deste painel); null = não salva
   const [savedId, setSavedId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // salva agora (não ao abrir uma já salva): o check entra com um salto
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,6 +87,8 @@ function Content({
     run(async (t) => {
       const created = await saveWord(t, { word, article_id: articleId, context: sentence });
       setSavedId(created.id);
+      setJustSaved(true);
+      haptic.tap();
     }, "Não foi possível salvar. Tente novamente.");
 
   const remove = () =>
@@ -114,7 +123,9 @@ function Content({
       {savedId !== null ? (
         <View style={styles.saved}>
           <View style={styles.savedLabel}>
-            <Ionicons name="checkmark-circle" size={20} color={colors.success600} />
+            <Animated.View entering={justSaved ? ZoomIn.springify().damping(12) : undefined}>
+              <Ionicons name="checkmark-circle" size={20} color={colors.success600} />
+            </Animated.View>
             <AppText style={styles.semibold}>Palavra salva</AppText>
           </View>
           <Button variant="ghost" title="Remover" loading={busy} onPress={remove} />

@@ -3,6 +3,7 @@ import { useContext, useEffect, useRef, useState, type ComponentProps } from "re
 import {
   AccessibilityInfo,
   Animated,
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -14,22 +15,44 @@ import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { achievementIcon } from "@/components/achievement-badge";
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
+import { Confetti } from "@/components/confetti";
 import { CountUp } from "@/components/count-up";
+import { GoalRing } from "@/components/goal-ring";
 import { IconButton } from "@/components/icon-button";
 import { formatDays, formatNumber } from "@/lib/format";
+import { haptic } from "@/lib/haptics";
+import { useStreakHidden } from "@/lib/streak-visibility";
 import type { GoalStatus } from "@/lib/preferences";
 import type { SessionGains } from "@/lib/use-reading-session";
 import { useReduceMotion } from "@/lib/use-reduce-motion";
 import { colors, fontFamily, motion, radius, spacing, type ColorToken } from "@/theme";
 
 const PHRASES = ["Mais um texto lido!", "Mandou bem!", "Leitura concluída"];
-const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 365];
+const STREAK_MILESTONES = [3, 7, 14, 30, 50, 66, 100, 365];
 const MAX_ACHIEVEMENT_CARDS = 2;
 
-/** Título da conclusão: marco de ofensiva quando a meta virou hoje; senão uma das 3 frases. */
-export function completionTitle(streak: number, goalMet: boolean, pick: number): string {
-  if (goalMet && STREAK_MILESTONES.includes(streak)) return `${streak} dias seguidos!`;
+/** Título da conclusão: marco quando a ofensiva subiu nesta leitura; senão uma das 3 frases. */
+export function completionTitle(streak: number, streakUp: boolean, pick: number): string {
+  if (streakUp && STREAK_MILESTONES.includes(streak)) return `${streak} dias seguidos!`;
   return PHRASES[Math.floor(pick * PHRASES.length) % PHRASES.length];
+}
+
+/** Frase dos marcos grandes (66 dias = tempo médio para um hábito se firmar, Lally et al. 2010). */
+export function milestoneNote(streak: number): string | null {
+  switch (streak) {
+    case 7:
+      return "Uma semana inteira lendo em inglês.";
+    case 30:
+      return "Um mês: ler já faz parte do seu dia.";
+    case 66:
+      return "66 dias: o tempo médio para um hábito se firmar.";
+    case 100:
+      return "100 dias de leitura. Poucos chegam aqui.";
+    case 365:
+      return "Um ano inteiro lendo. Que jornada!";
+    default:
+      return null;
+  }
 }
 
 type Action = { label: string; onPress: () => void };
@@ -44,6 +67,8 @@ type Props = {
   longestStreak: number | null;
   primaryAction: Action | null; // "Próximo texto" / "Próximo capítulo" (null: último capítulo)
   secondaryAction: Action; // "Voltar ao Explorar" / "Voltar ao livro"
+  // "Terminar por hoje" (só com a meta cumprida): fim positivo em vez de "mais um" (pico-fim)
+  onFinishForToday?: () => void;
 };
 
 // Tela cheia de conclusão (design-v3 5.4): o pico da leitura, aberto só pelo "Concluir leitura".
@@ -75,15 +100,20 @@ function Content({
   longestStreak,
   primaryAction,
   secondaryAction,
+  onFinishForToday,
 }: Props) {
   const insets = useContext(SafeAreaInsetsContext);
   const reduceMotion = useReduceMotion();
+  const streakHidden = useStreakHidden();
+  // ofensiva +1 nesta leitura (mínimo do dia), e a pessoa não a escondeu
+  const streakUp = gains.streakUp && streakHidden === false;
   const [steps] = useState(() => Array.from({ length: STEPS }, () => new Animated.Value(0)));
   const [skipped, setSkipped] = useState(false);
+  const [finished, setFinished] = useState(false);
   const [pick] = useState(() => Math.random());
   const titleRef = useRef<Text>(null);
 
-  const title = completionTitle(gains.streak, gains.goalMet, pick);
+  const title = completionTitle(gains.streak, streakUp, pick);
   const shownAchievements = gains.achievements.slice(0, MAX_ACHIEVEMENT_CARDS);
   const moreAchievements = gains.achievements.length - shownAchievements.length;
 
@@ -94,7 +124,15 @@ function Content({
     ? Math.min(1, Math.max(0, ((goal?.words_today ?? 0) - gains.words) / target))
     : 0;
   const alreadyMet = startFraction >= 1;
-  const [crossed, setCrossed] = useState(alreadyMet);
+  const willCross = target !== null && !alreadyMet && endFraction >= 1;
+  // o anel avisa quando chega a 100%: verde, confete e háptica no mesmo instante (plan.txt §3)
+  const [ringFull, setRingFull] = useState(false);
+  const crossed = alreadyMet || (willCross && (ringFull || reduceMotion === true || skipped));
+  const milestone = streakUp ? milestoneNote(gains.streak) : null;
+  function onRingFull() {
+    setRingFull(true);
+    haptic.success();
+  }
 
   useEffect(() => {
     if (reduceMotion === null) return;
@@ -111,7 +149,7 @@ function Content({
         ? Animated.spring(step, { toValue: 1, ...motion.pop, useNativeDriver: true })
         : Animated.timing(step, {
             toValue: 1,
-            duration: i === 5 ? motion.count : i === 0 ? motion.slow : motion.base,
+            duration: i === 0 ? motion.slow : motion.base,
             easing: motion.easing,
             useNativeDriver: true,
           });
@@ -122,16 +160,6 @@ function Content({
     return () => all.stop();
   }, [steps, reduceMotion, skipped]);
 
-  // a barra troca para verde ao cruzar 100%
-  useEffect(() => {
-    if (alreadyMet || !target || endFraction < 1) return;
-    const span = endFraction - startFraction;
-    const id = steps[5].addListener(({ value }) => {
-      if (startFraction + span * value >= 1) setCrossed(true);
-    });
-    return () => steps[5].removeListener(id);
-  }, [steps, alreadyMet, target, startFraction, endFraction]);
-
   // um anúncio com tudo, e o foco no título
   useEffect(() => {
     const parts = [
@@ -139,7 +167,7 @@ function Content({
       gains.xp > 0 ? `Mais ${formatNumber(gains.xp)} pontos de experiência` : null,
       gains.words > 0 ? `${formatNumber(gains.words)} palavras` : null,
       gains.goalMet ? "Meta de hoje cumprida" : null,
-      gains.goalMet ? `Ofensiva: ${formatDays(gains.streak)}` : null,
+      streakUp ? `Ofensiva: ${formatDays(gains.streak)}` : null,
       gains.achievements.length
         ? `Conquista: ${gains.achievements.map((a) => a.title).join(", ")}`
         : null,
@@ -156,6 +184,11 @@ function Content({
       { translateY: steps[i].interpolate({ inputRange: [0, 1], outputRange: [rise, 0] }) },
     ],
   });
+
+  if (finished && onFinishForToday) {
+    const streak = streakHidden === false ? gains.streak : null;
+    return <UntilTomorrow streak={streak} onDone={onFinishForToday} />;
+  }
 
   return (
     <View
@@ -238,8 +271,8 @@ function Content({
         </View>
 
         {target !== null && goal && (
-          <View
-            style={[styles.card, crossed ? styles.goalDone : styles.goalOpen]}
+          <Animated.View
+            style={[styles.card, styles.goal, crossed ? styles.goalDone : styles.goalOpen, fade(5, 12)]}
             accessible
             accessibilityLabel={
               goal.completed
@@ -247,19 +280,26 @@ function Content({
                 : `Faltam ${formatNumber(goal.remaining)} palavras para a meta de hoje`
             }
           >
-            <View style={styles.row}>
+            <GoalRing
+              from={startFraction}
+              to={endFraction}
+              delay={DELAYS[5]}
+              skipped={skipped}
+              color={crossed ? colors.success500 : colors.primary500}
+              onFull={willCross ? onRingFull : undefined}
+            >
               {crossed ? (
-                <View style={styles.inline}>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.success600} />
-                  <AppText variant="small" style={styles.semibold}>
-                    Meta de hoje cumprida
-                  </AppText>
-                </View>
+                <Ionicons name="checkmark" size={26} color={colors.success600} />
               ) : (
                 <AppText variant="small" style={styles.semibold}>
-                  Faltam {formatNumber(goal.remaining)} palavras
+                  {Math.round(endFraction * 100)}%
                 </AppText>
               )}
+            </GoalRing>
+            <View style={styles.flex}>
+              <AppText style={styles.semibold}>
+                {crossed ? "Meta de hoje cumprida" : `Faltam ${formatNumber(goal.remaining)} palavras`}
+              </AppText>
               <AppText
                 variant="small"
                 color={crossed ? "success700" : "textSecondary"}
@@ -268,33 +308,20 @@ function Content({
                 {formatNumber(goal.words_today)} / {formatNumber(target)}
               </AppText>
             </View>
-            <View style={styles.track}>
-              <Animated.View
-                style={[
-                  styles.fill,
-                  { backgroundColor: crossed ? colors.success500 : colors.primary500 },
-                  {
-                    transformOrigin: "left",
-                    transform: [
-                      {
-                        scaleX: steps[5].interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [Math.max(0.001, startFraction), Math.max(0.001, endFraction)],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            </View>
-          </View>
+          </Animated.View>
         )}
 
-        {gains.goalMet && (
+        {streakUp && (
           <View
             style={[styles.card, styles.streakCard]}
             accessible
-            accessibilityLabel={`${formatDays(gains.streak)} de ofensiva. ${streakNote(gains.streak, longestStreak)}`}
+            accessibilityLabel={[
+              `${formatDays(gains.streak)} de ofensiva`,
+              streakNote(gains.streak, longestStreak),
+              milestone,
+            ]
+              .filter(Boolean)
+              .join(". ")}
           >
             <Animated.Image
               source={require("../../assets/images/streak.png")}
@@ -303,9 +330,11 @@ function Content({
                 {
                   transform: [
                     {
+                      // antecipação: encolhe, cresce e assenta
                       scale: steps[6].interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [1, 1.15, 1],
+                        inputRange: [0, 0.3, 0.7, 1],
+                        outputRange: [1, 0.9, 1.18, 1],
+                        extrapolate: "clamp",
                       }),
                     },
                   ],
@@ -359,6 +388,11 @@ function Content({
               <AppText variant="small" color="streak700">
                 {streakNote(gains.streak, longestStreak)}
               </AppText>
+              {milestone && (
+                <AppText variant="small" style={styles.semibold}>
+                  {milestone}
+                </AppText>
+              )}
             </View>
           </View>
         )}
@@ -420,7 +454,47 @@ function Content({
             style={styles.primary}
           />
         )}
+        {onFinishForToday && goal?.completed && (
+          <Button variant="ghost" title="Terminar por hoje" onPress={() => setFinished(true)} />
+        )}
       </View>
+      {willCross && ringFull && <Confetti />}
+    </View>
+  );
+}
+
+// Fim positivo do dia (pico-fim): sem "mais um", só o descanso merecido.
+// streak null: a pessoa escondeu a ofensiva
+function UntilTomorrow({ streak, onDone }: { streak: number | null; onDone: () => void }) {
+  const insets = useContext(SafeAreaInsetsContext);
+  const titleRef = useRef<Text>(null);
+  useEffect(() => {
+    if (titleRef.current) AccessibilityInfo.sendAccessibilityEvent(titleRef.current, "focus");
+  }, []);
+
+  return (
+    <View
+      style={[
+        styles.screen,
+        styles.rest,
+        { paddingTop: insets?.top ?? 0, paddingBottom: (insets?.bottom ?? 0) + spacing.xl },
+      ]}
+    >
+      <Image
+        source={require("../../assets/images/celebrate.png")}
+        style={styles.illustration}
+        accessibilityIgnoresInvertColors
+        accessible={false}
+      />
+      <AppText ref={titleRef} variant="h1" accessibilityRole="header" style={styles.center}>
+        Até amanhã!
+      </AppText>
+      <AppText color="textSecondary" style={styles.center}>
+        {streak === null
+          ? "Meta cumprida. Descansar também faz parte."
+          : `Meta cumprida e ofensiva de ${formatDays(streak)} garantida. Descansar também faz parte.`}
+      </AppText>
+      <Button title="Voltar ao início" onPress={onDone} style={[styles.primary, styles.restAction]} />
     </View>
   );
 }
@@ -475,11 +549,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.lg, borderWidth: 1, padding: spacing.lg, gap: spacing.md },
   goalOpen: { backgroundColor: colors.surface, borderColor: colors.border },
   goalDone: { backgroundColor: colors.success100, borderColor: colors.success500 },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  inline: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  goal: { flexDirection: "row", alignItems: "center" },
   semibold: { fontFamily: fontFamily.semibold },
-  track: { height: 10, borderRadius: 5, backgroundColor: colors.border, overflow: "hidden" },
-  fill: { width: "100%", height: "100%", borderRadius: 5 },
   streakCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -515,4 +586,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   primary: { minHeight: 52 },
+  rest: { alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.xl },
+  restAction: { alignSelf: "stretch", marginTop: spacing.lg },
 });

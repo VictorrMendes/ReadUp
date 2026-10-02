@@ -396,6 +396,10 @@ export default function ArticleScreen() {
               secondaryAction.onPress();
             },
           }}
+          onFinishForToday={() => {
+            setCelebration(null);
+            router.navigate("/");
+          }}
         />
       )}
       <WordPopup
