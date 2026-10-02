@@ -2,7 +2,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import type { ComponentProps } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   View,
   type PressableProps,
@@ -11,10 +10,10 @@ import {
 } from "react-native";
 
 import { AppText } from "@/components/app-text";
+import { PressableScale } from "@/components/pressable-scale";
 import {
   colors,
   fontFamily,
-  pressedScale,
   radius,
   ripple,
   spacing,
@@ -55,7 +54,7 @@ export function Button({
   const inactive = !!disabled || loading;
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={title} // o ícone é decorativo: o nome é só o título
       android_ripple={variant === "secondary" || variant === "ghost" ? ripple : undefined}
@@ -68,7 +67,6 @@ export function Button({
           styles.base,
           background && { backgroundColor: colors[background] },
           v.border && { borderWidth: 1, borderColor: colors[v.border] },
-          pressed && pressedScale,
           pressed && !v.pressed && styles.pressed,
           inactive && styles.inactive,
           style,
@@ -85,7 +83,7 @@ export function Button({
           </AppText>
         </View>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 

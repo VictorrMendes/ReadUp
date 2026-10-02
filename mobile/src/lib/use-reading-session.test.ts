@@ -13,6 +13,7 @@ const OK: ProgressResult = {
   xp_gained: 0,
   goal_met: false,
   streak: 0,
+  streak_active_today: false,
   achievements_unlocked: [],
 };
 
@@ -47,7 +48,7 @@ test("abre a sessão com 0 s ao iniciar e envia após 15 s com o maior progresso
   const { session, send, onResult } = start();
   await advance(0);
   expect(send).toHaveBeenCalledWith(0, 0);
-  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, words: 0, goalMet: false, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenCalledWith(OK, { xp: 0, words: 0, goalMet: false, streakUp: false, streak: 0, achievements: [] });
 
   session.report(40.7);
   session.report(25); // voltar a rolagem não reduz
@@ -140,13 +141,13 @@ test("soma o xp_gained dos envios e marca a meta cumprida durante a sessão", as
   const { session, onResult } = start(send);
 
   await advance(15);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, words: 0, goalMet: false, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 9, words: 0, goalMet: false, streakUp: false, streak: 0, achievements: [] });
   await advance(15);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, words: 0, goalMet: true, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 65, words: 0, goalMet: true, streakUp: false, streak: 0, achievements: [] });
   await advance(15);
 
   expect(send).toHaveBeenCalledTimes(4);
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, words: 0, goalMet: true, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 91, words: 0, goalMet: true, streakUp: false, streak: 0, achievements: [] });
   session.stop();
 });
 
@@ -156,7 +157,7 @@ test("meta já cumprida antes da sessão não conta como cumprida nela", async (
 
   await advance(15);
 
-  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, words: 0, goalMet: false, streak: 0, achievements: [] });
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), { xp: 6, words: 0, goalMet: false, streakUp: false, streak: 0, achievements: [] });
   session.stop();
 });
 
@@ -164,7 +165,7 @@ test("expõe a ofensiva da última resposta", async () => {
   const send = jest
     .fn()
     .mockResolvedValueOnce({ ...OK, streak: 3 }) // abertura: ofensiva de ontem
-    .mockResolvedValue({ ...OK, xp_gained: 56, goal_met: true, streak: 4 });
+    .mockResolvedValue({ ...OK, xp_gained: 56, goal_met: true, streak: 4, streak_active_today: true });
   const { session, onResult } = start(send);
 
   await advance(0);
@@ -172,6 +173,7 @@ test("expõe a ofensiva da última resposta", async () => {
     xp: 0,
     words: 0,
     goalMet: false,
+    streakUp: false,
     streak: 3,
     achievements: [],
   });
@@ -181,9 +183,23 @@ test("expõe a ofensiva da última resposta", async () => {
     xp: 56,
     words: 0,
     goalMet: true,
+    streakUp: true, // o mínimo do dia virou durante a sessão
     streak: 4,
     achievements: [],
   });
+  session.stop();
+});
+
+test("ofensiva já mantida antes da sessão não conta como +1 nela", async () => {
+  const send = jest.fn().mockResolvedValue({ ...OK, xp_gained: 3, streak: 5, streak_active_today: true });
+  const { session, onResult } = start(send);
+
+  await advance(15);
+
+  expect(onResult).toHaveBeenLastCalledWith(
+    expect.anything(),
+    expect.objectContaining({ streakUp: false, streak: 5 }),
+  );
   session.stop();
 });
 

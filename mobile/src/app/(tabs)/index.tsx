@@ -2,6 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useState } from "react";
 import { Image, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/app-text";
@@ -24,11 +25,14 @@ import { useAuth } from "@/lib/auth";
 import { formatLongDate, formatNumber } from "@/lib/format";
 import { getGoal, type GoalStatus } from "@/lib/preferences";
 import { getDaily, getSummary, type DailyStat, type StatsSummary } from "@/lib/stats";
+import { useStreakHidden } from "@/lib/streak-visibility";
 import { colors, fontFamily, spacing } from "@/theme";
 
 // arte do herói: 390×280 (escala pela largura); os cartões começam 64dp antes do fim dela
 const HERO_RATIO = 280 / 390;
 const CARD_OVERLAP = 64;
+// cartões entram em cascata (45 ms entre eles) quando os dados chegam; voltar à aba não repete
+const ENTER = [0, 1, 2, 3].map((i) => FadeInDown.duration(260).delay(i * 45));
 
 type HomeData = {
   goal: GoalStatus;
@@ -59,6 +63,7 @@ export default function HomeScreen() {
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [focused, setFocused] = useState(true);
+  const streakHidden = useStreakHidden();
 
   // recarrega ao voltar para a aba: reflete a leitura recém-feita
   useFocusEffect(
@@ -153,27 +158,38 @@ export default function HomeScreen() {
           ) : (
             <>
               {goal?.target != null && (
-                <DailyGoal
-                  target={goal.target}
-                  wordsToday={goal.words_today}
-                  remaining={goal.remaining}
-                  completed={goal.completed}
-                  action={action}
-                />
+                <Animated.View entering={ENTER[0]}>
+                  <DailyGoal
+                    target={goal.target}
+                    wordsToday={goal.words_today}
+                    remaining={goal.remaining}
+                    completed={goal.completed}
+                    action={action}
+                  />
+                </Animated.View>
               )}
 
-              {summary && (
-                <StreakCard
-                  current={summary.streak_current}
-                  longest={summary.streak_longest}
-                  activeToday={summary.streak_active_today}
-                  week={data.week ?? undefined}
-                />
+              {summary && streakHidden === false && (
+                <Animated.View entering={ENTER[1]}>
+                  <StreakCard
+                    current={summary.streak_current}
+                    longest={summary.streak_longest}
+                    activeToday={summary.streak_active_today}
+                    goalMetToday={goal?.completed}
+                    freezes={summary.streak_freezes}
+                    wordsTotal={summary.words_total}
+                    week={data.week ?? undefined}
+                  />
+                </Animated.View>
               )}
 
-              {next && <NextAchievementCard achievement={next} />}
+              {next && (
+                <Animated.View entering={ENTER[2]}>
+                  <NextAchievementCard achievement={next} />
+                </Animated.View>
+              )}
 
-              <View style={styles.section}>
+              <Animated.View entering={ENTER[3]} style={styles.section}>
                 <AppText variant="h3" accessibilityRole="header">
                   {data.continueReading ? "Continuar lendo" : "Sugerido para você"}
                 </AppText>
@@ -185,7 +201,7 @@ export default function HomeScreen() {
                     <Button title="Explorar textos" onPress={() => router.navigate("/explore")} />
                   </>
                 )}
-              </View>
+              </Animated.View>
             </>
           )}
         </View>

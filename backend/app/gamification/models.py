@@ -15,3 +15,5 @@ class Streak(Base):
     current: Mapped[int] = mapped_column(Integer, server_default="0")
     longest: Mapped[int] = mapped_column(Integer, server_default="0")
     last_active_day: Mapped[date | None] = mapped_column(Date)
+    # escudos: cobrem dias em branco sozinhos (regras em streak.py)
+    freezes: Mapped[int] = mapped_column(Integer, server_default="2")

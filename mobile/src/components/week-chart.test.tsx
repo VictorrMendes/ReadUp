@@ -6,13 +6,13 @@ import { MAX_BAR_HEIGHT, WeekChart } from "./week-chart";
 
 // segunda 09/03/2026 a domingo 15/03/2026
 const DAYS = [
-  { day: "2026-03-09", words_read: 320, xp: 82, goal_met: true },
-  { day: "2026-03-10", words_read: 160, xp: 16, goal_met: false },
-  { day: "2026-03-11", words_read: 0, xp: 0, goal_met: false },
-  { day: "2026-03-12", words_read: 80, xp: 8, goal_met: false },
-  { day: "2026-03-13", words_read: 1, xp: 0, goal_met: false },
-  { day: "2026-03-14", words_read: 0, xp: 0, goal_met: false },
-  { day: "2026-03-15", words_read: 320, xp: 82, goal_met: true },
+  { day: "2026-03-09", words_read: 320, xp: 82, goal_met: true, streak_kept: true },
+  { day: "2026-03-10", words_read: 160, xp: 16, goal_met: false, streak_kept: true },
+  { day: "2026-03-11", words_read: 0, xp: 0, goal_met: false, streak_kept: false },
+  { day: "2026-03-12", words_read: 80, xp: 8, goal_met: false, streak_kept: true },
+  { day: "2026-03-13", words_read: 1, xp: 0, goal_met: false, streak_kept: false },
+  { day: "2026-03-14", words_read: 0, xp: 0, goal_met: false, streak_kept: false },
+  { day: "2026-03-15", words_read: 320, xp: 82, goal_met: true, streak_kept: true },
 ];
 
 test.each([

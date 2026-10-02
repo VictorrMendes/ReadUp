@@ -1,9 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
+import { PressableScale } from "@/components/pressable-scale";
 import type { Option } from "@/lib/preferences";
-import { colors, fontFamily, pressedScale, radius, ripple, spacing, touchTarget } from "@/theme";
+import { colors, fontFamily, radius, ripple, spacing, touchTarget } from "@/theme";
 
 type Props<T> = {
   options: Option<T>[];
@@ -28,7 +29,7 @@ export function OptionList<T extends string | number>({
       {options.map((option) => {
         const selected = option.value === value;
         return (
-          <Pressable
+          <PressableScale
             key={String(option.value)}
             onPress={() => onChange(option.value)}
             disabled={disabled}
@@ -39,7 +40,6 @@ export function OptionList<T extends string | number>({
             style={({ pressed }) => [
               styles.option,
               selected && styles.selected,
-              pressed && pressedScale,
               pressed && !selected && styles.pressed,
             ]}
           >
@@ -51,7 +51,7 @@ export function OptionList<T extends string | number>({
               </AppText>
             </View>
             {selected && <Ionicons name="checkmark-circle" size={24} color={colors.primary500} />}
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>

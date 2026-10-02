@@ -1,9 +1,17 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
-import type { ComponentProps } from "react";
+import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
 import { Text } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
-import { colors, compactFontScale, fontFamily } from "@/theme";
+import { haptic } from "@/lib/haptics";
+import { colors, compactFontScale, fontFamily, motion } from "@/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -15,9 +23,26 @@ const TABS: { name: string; title: string; icon: IconName; iconOutline: IconName
   { name: "profile", title: "Perfil", icon: "person", iconOutline: "person-outline" },
 ];
 
+// Ícone da aba dá um salto curto quando ela passa a ser a ativa (não ao abrir o app).
+function BouncyIcon({ focused, children }: { focused: boolean; children: ReactNode }) {
+  const scale = useSharedValue(1);
+  const wasFocused = useRef(focused);
+  useEffect(() => {
+    if (focused && !wasFocused.current) {
+      scale.set(
+        withSequence(withTiming(1.18, { duration: 110 }), withSpring(1, motion.release)),
+      );
+    }
+    wasFocused.current = focused;
+  }, [focused, scale]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
 export default function TabsLayout() {
   return (
     <Tabs
+      screenListeners={{ tabPress: haptic.select }}
       screenOptions={{
         tabBarActiveTintColor: colors.primary500,
         tabBarInactiveTintColor: colors.textSecondary,
@@ -51,7 +76,9 @@ export default function TabsLayout() {
             // Início tem o título grande dentro da própria tela
             headerShown: tab.name !== "index",
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? tab.icon : tab.iconOutline} color={color} size={size} />
+              <BouncyIcon focused={focused}>
+                <Ionicons name={focused ? tab.icon : tab.iconOutline} color={color} size={size} />
+              </BouncyIcon>
             ),
           }}
         />

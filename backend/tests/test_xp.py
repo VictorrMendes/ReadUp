@@ -34,6 +34,7 @@ ZEROS = {
     "streak_current": 0,
     "streak_longest": 0,
     "streak_active_today": False,
+    "streak_freezes": 0,
     "minutes_total": 0,
     "words_saved_total": 0,
     "books_started": 0,

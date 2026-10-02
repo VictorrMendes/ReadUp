@@ -1,13 +1,14 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
+import { PressableScale } from "@/components/pressable-scale";
 import { Badge } from "@/components/badge";
 import { Card } from "@/components/card";
 import { ProgressBar } from "@/components/progress-bar";
 import type { ArticleSummary } from "@/lib/articles";
 import { formatNumber } from "@/lib/format";
-import { colors, pressedScale, radius, ripple, spacing } from "@/theme";
+import { colors, radius, ripple, spacing } from "@/theme";
 
 type Props = {
   article: Pick<
@@ -85,15 +86,15 @@ export function ReadingCard({ article, onPress }: Props) {
     );
   }
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       android_ripple={ripple}
-      style={({ pressed }) => [styles.pressable, pressed && pressedScale]}
+      style={({ pressed }) => [styles.pressable]}
     >
       {card}
-    </Pressable>
+    </PressableScale>
   );
 }
 

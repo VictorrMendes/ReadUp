@@ -46,6 +46,7 @@ class ProgressOut(BaseModel):
     xp_gained: int
     goal_met: bool
     streak: int
+    streak_active_today: bool  # mínimo do dia feito (a ofensiva contou hoje)
     achievements_unlocked: list[AchievementRef]  # desbloqueadas NESTA chamada
 
 
@@ -122,7 +123,7 @@ def save_progress(
         else []
     )
     goal_met = goal_met_today(session, user.id)
-    streak = streak_status(session, user.id).streak_current
+    streak = streak_status(session, user.id)
     session.commit()
     return ProgressOut(
         progress=row.progress,
@@ -131,7 +132,8 @@ def save_progress(
         completed=row.completed_at is not None,
         xp_gained=xp_gained,
         goal_met=goal_met,
-        streak=streak,
+        streak=streak.streak_current,
+        streak_active_today=streak.streak_active_today,
         achievements_unlocked=[
             AchievementRef(id=a.id, title=a.title, icon=a.icon) for a in unlocked
         ],
