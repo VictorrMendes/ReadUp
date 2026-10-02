@@ -58,6 +58,14 @@ export const motion = {
   count: 600,
   easing: Easing.out(Easing.cubic),
   pop: { speed: 14, bounciness: 8 }, // Animated.spring
+  // Reanimated (plan.txt §3): toque afunda rápido e volta com mola; painel sobe com mola
+  press: 90,
+  pressScale: 0.97,
+  progress: 500,
+  ring: 800, // anel da meta enchendo
+  celebrate: 1500, // confete
+  release: { damping: 15, stiffness: 300 },
+  sheet: { damping: 20, stiffness: 220 },
 } as const;
 
 export const fontSize = {

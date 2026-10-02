@@ -1,8 +1,8 @@
 import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
-import { Card } from "@/components/card";
 import { PressableScale } from "@/components/pressable-scale";
+import { Card } from "@/components/card";
 import { ProgressBar } from "@/components/progress-bar";
 import { bookTitle, type Book } from "@/lib/books";
 import { formatNumber } from "@/lib/format";

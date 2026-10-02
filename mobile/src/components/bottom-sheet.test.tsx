@@ -40,3 +40,21 @@ test("fechado não mostra o conteúdo", async () => {
 
   expect(screen.queryByText("Conteúdo")).not.toBeOnTheScreen();
 });
+
+test("fechar depois de aberto desmonta o conteúdo ao fim da saída", async () => {
+  const { rerender } = await render(
+    <BottomSheet visible onClose={jest.fn()}>
+      <AppText>Conteúdo</AppText>
+    </BottomSheet>,
+  );
+  expect(screen.getByText("Conteúdo")).toBeOnTheScreen();
+
+  await rerender(
+    <BottomSheet visible={false} onClose={jest.fn()}>
+      <AppText>Conteúdo</AppText>
+    </BottomSheet>,
+  );
+
+  // no Jest a animação termina na hora; no aparelho, depois de ~150 ms
+  expect(screen.queryByText("Conteúdo")).not.toBeOnTheScreen();
+});

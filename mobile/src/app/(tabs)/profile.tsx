@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Image, ScrollView, StyleSheet, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Switch, View } from "react-native";
 
 import { AchievementBadge } from "@/components/achievement-badge";
 import { AppText } from "@/components/app-text";
@@ -24,7 +24,8 @@ import {
   type ReminderTime,
 } from "@/lib/reminders";
 import { getDaily, getSummary, type DailyStat, type StatsSummary } from "@/lib/stats";
-import { colors, compactFontScale, spacing } from "@/theme";
+import { setStreakHidden, useStreakHidden } from "@/lib/streak-visibility";
+import { colors, compactFontScale, fontFamily, spacing } from "@/theme";
 
 const SAVED_FEEDBACK_MS = 2000;
 
@@ -54,6 +55,7 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const streakHidden = useStreakHidden();
 
   // recarrega ao focar a aba: números da leitura recém-feita
   useFocusEffect(
@@ -273,6 +275,22 @@ export default function ProfileScreen() {
         </>
       )}
 
+      <View style={styles.toggle}>
+        <View style={styles.toggleText}>
+          <AppText style={styles.semibold}>Mostrar ofensiva</AppText>
+          <AppText variant="small" color="textSecondary">
+            Some do Início e da tela de conclusão. Continua contando.
+          </AppText>
+        </View>
+        <Switch
+          accessibilityLabel="Mostrar ofensiva"
+          value={streakHidden === false}
+          disabled={streakHidden === null}
+          onValueChange={(show) => void setStreakHidden(!show).catch(() => {})}
+          trackColor={{ true: colors.primary500, false: colors.border }}
+        />
+      </View>
+
       <Button variant="ghost" title="Sair" onPress={signOut} style={styles.signOut} />
     </ScrollView>
   );
@@ -301,4 +319,7 @@ const styles = StyleSheet.create({
   streakIcon: { width: 20, height: 20 },
   saved: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   signOut: { marginTop: spacing.xl },
+  toggle: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.md },
+  toggleText: { flex: 1, gap: spacing.xs },
+  semibold: { fontFamily: fontFamily.semibold },
 });

@@ -133,6 +133,9 @@ def test_daily_fills_empty_days_in_chronological_order_per_user(
         (320, 82, True),
     ]
     assert [p["words_read"] for p in theirs] == [0, 0, 0, 0, 0, 50, 0]
+    # mínimo do dia (50 palavras) marca o dia na faixa da ofensiva, com ou sem meta
+    assert [p["streak_kept"] for p in mine] == [False] * 4 + [True, False, True]
+    assert [p["streak_kept"] for p in theirs][-2] is True
 
     # virada do dia: no dia seguinte, a janela anda um dia
     monkeypatch.setattr("app.stats.service.local_today", lambda: today + timedelta(days=1))

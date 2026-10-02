@@ -2,9 +2,9 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
+import { PressableScale } from "@/components/pressable-scale";
 import { Badge } from "@/components/badge";
 import { Card } from "@/components/card";
-import { PressableScale } from "@/components/pressable-scale";
 import { ProgressBar } from "@/components/progress-bar";
 import type { ArticleSummary } from "@/lib/articles";
 import { bookTitle } from "@/lib/books";

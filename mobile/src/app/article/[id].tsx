@@ -104,7 +104,7 @@ const Paragraph = memo(function Paragraph({
             onPress={chunk.word === null ? undefined : () => select(chunk.word)}
             onLongPress={() => {
               // frase inteira escolhida: um toque firme confirma o gesto
-              haptic.medium();
+              haptic.hold();
               select(null);
             }}
           >

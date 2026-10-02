@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,6 +27,7 @@ import { enterFrom } from "@/lib/motion";
 import { getGoal, type GoalStatus } from "@/lib/preferences";
 import { syncReminders } from "@/lib/reminders";
 import { getDaily, getSummary, type DailyStat, type StatsSummary } from "@/lib/stats";
+import { useStreakHidden } from "@/lib/streak-visibility";
 import { colors, fontFamily, spacing } from "@/theme";
 
 // arte do herói: 390×280 (escala pela largura); os cartões começam 64dp antes do fim dela
@@ -62,6 +63,7 @@ export default function HomeScreen() {
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [focused, setFocused] = useState(true);
+  const streakHidden = useStreakHidden();
 
   // recarrega ao voltar para a aba: reflete a leitura recém-feita
   useFocusEffect(
@@ -83,8 +85,6 @@ export default function HomeScreen() {
             : (pickNextText(await listArticles(token, level).catch(() => [])) ?? null);
           if (!active) return;
           setData({ goal, continueReading, suggestion, summary, week, achievements });
-          // lembretes acompanham o dia: meta cumprida tira o de hoje; o texto usa a ofensiva
-          void syncReminders(goal.completed, summary?.streak_current ?? 0);
           setError(null);
         })
         .catch((e: unknown) => {
@@ -97,6 +97,16 @@ export default function HomeScreen() {
       };
     }, [token, user?.english_level, signOut]),
   );
+
+  // lembretes acompanham o dia: hoje não lembra se a ofensiva já está garantida ou a meta
+  // cumprida; com a ofensiva escondida, o texto não fala dela
+  useEffect(() => {
+    if (!data || streakHidden === null) return;
+    void syncReminders(
+      data.goal.completed || !!data.summary?.streak_active_today,
+      streakHidden ? 0 : (data.summary?.streak_current ?? 0),
+    );
+  }, [data, streakHidden]);
 
   const goal = data?.goal;
   const summary = data?.summary;
@@ -157,7 +167,6 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {/* cartões entram em cascata uma vez, quando os dados chegam (não a cada volta à aba) */}
               {goal?.target != null && (
                 <Animated.View entering={enterFrom(0)}>
                   <DailyGoal
@@ -167,18 +176,21 @@ export default function HomeScreen() {
                     completed={goal.completed}
                     action={action}
                   />
-              </Animated.View>
+                </Animated.View>
               )}
 
-              {summary && (
+              {summary && streakHidden === false && (
                 <Animated.View entering={enterFrom(1)}>
                   <StreakCard
                     current={summary.streak_current}
                     longest={summary.streak_longest}
                     activeToday={summary.streak_active_today}
+                    goalMetToday={goal?.completed}
+                    freezes={summary.streak_freezes}
+                    wordsTotal={summary.words_total}
                     week={data.week ?? undefined}
                   />
-              </Animated.View>
+                </Animated.View>
               )}
 
               {next && (

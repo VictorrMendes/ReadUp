@@ -10,7 +10,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Reanimated from "react-native-reanimated";
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 
 import { achievementIcon } from "@/components/achievement-badge";
@@ -22,7 +21,7 @@ import { GoalRing } from "@/components/goal-ring";
 import { IconButton } from "@/components/icon-button";
 import { formatDays, formatNumber } from "@/lib/format";
 import { haptic } from "@/lib/haptics";
-import { durations, enterFrom } from "@/lib/motion";
+import { useStreakHidden } from "@/lib/streak-visibility";
 import type { GoalStatus } from "@/lib/preferences";
 import type { SessionGains } from "@/lib/use-reading-session";
 import { useReduceMotion } from "@/lib/use-reduce-motion";
@@ -32,16 +31,13 @@ const PHRASES = ["Mais um texto lido!", "Mandou bem!", "Leitura concluída"];
 const STREAK_MILESTONES = [3, 7, 14, 30, 50, 66, 100, 365];
 const MAX_ACHIEVEMENT_CARDS = 2;
 
-/** Título da conclusão: marco de ofensiva quando a meta virou hoje; senão uma das 3 frases. */
-export function completionTitle(streak: number, goalMet: boolean, pick: number): string {
-  if (goalMet && STREAK_MILESTONES.includes(streak)) return `${streak} dias seguidos!`;
+/** Título da conclusão: marco quando a ofensiva subiu nesta leitura; senão uma das 3 frases. */
+export function completionTitle(streak: number, streakUp: boolean, pick: number): string {
+  if (streakUp && STREAK_MILESTONES.includes(streak)) return `${streak} dias seguidos!`;
   return PHRASES[Math.floor(pick * PHRASES.length) % PHRASES.length];
 }
 
-/**
- * Frase dos marcos grandes da ofensiva (dia em que a meta virou). 66 dias = tempo médio para um
- * hábito se firmar (Lally et al., 2010). Fala do hábito, não do número.
- */
+/** Frase dos marcos grandes (66 dias = tempo médio para um hábito se firmar, Lally et al. 2010). */
 export function milestoneNote(streak: number): string | null {
   switch (streak) {
     case 7:
@@ -70,8 +66,8 @@ type Props = {
   goal: GoalStatus | null; // meta depois da conclusão (null enquanto carrega ou se falhou)
   longestStreak: number | null;
   primaryAction: Action | null; // "Próximo texto" / "Próximo capítulo" (null: último capítulo)
-  secondaryAction: Action; // "Ver mais textos" / "Voltar ao livro"
-  // "Terminar por hoje" (com a meta cumprida): um fim positivo em vez de "mais um" (pico-fim)
+  secondaryAction: Action; // "Voltar ao Explorar" / "Voltar ao livro"
+  // "Terminar por hoje" (só com a meta cumprida): fim positivo em vez de "mais um" (pico-fim)
   onFinishForToday?: () => void;
 };
 
@@ -108,12 +104,16 @@ function Content({
 }: Props) {
   const insets = useContext(SafeAreaInsetsContext);
   const reduceMotion = useReduceMotion();
+  const streakHidden = useStreakHidden();
+  // ofensiva +1 nesta leitura (mínimo do dia), e a pessoa não a escondeu
+  const streakUp = gains.streakUp && streakHidden === false;
   const [steps] = useState(() => Array.from({ length: STEPS }, () => new Animated.Value(0)));
   const [skipped, setSkipped] = useState(false);
+  const [finished, setFinished] = useState(false);
   const [pick] = useState(() => Math.random());
   const titleRef = useRef<Text>(null);
 
-  const title = completionTitle(gains.streak, gains.goalMet, pick);
+  const title = completionTitle(gains.streak, streakUp, pick);
   const shownAchievements = gains.achievements.slice(0, MAX_ACHIEVEMENT_CARDS);
   const moreAchievements = gains.achievements.length - shownAchievements.length;
 
@@ -124,14 +124,15 @@ function Content({
     ? Math.min(1, Math.max(0, ((goal?.words_today ?? 0) - gains.words) / target))
     : 0;
   const alreadyMet = startFraction >= 1;
-  // a meta vira nesta leitura: anel fica verde, confete e háptica de sucesso nesse instante
   const willCross = target !== null && !alreadyMet && endFraction >= 1;
-  const [finished, setFinished] = useState(false);
-  const animateRing = reduceMotion === false && !skipped;
-  // o tempo do anel chegou a 100% (só com animação; sem ela, já cruza direto)
+  // o anel avisa quando chega a 100%: verde, confete e háptica no mesmo instante (plan.txt §3)
   const [ringFull, setRingFull] = useState(false);
   const crossed = alreadyMet || (willCross && (ringFull || reduceMotion === true || skipped));
-  const milestone = gains.goalMet ? milestoneNote(gains.streak) : null;
+  const milestone = streakUp ? milestoneNote(gains.streak) : null;
+  function onRingFull() {
+    setRingFull(true);
+    haptic.success();
+  }
 
   useEffect(() => {
     if (reduceMotion === null) return;
@@ -148,7 +149,7 @@ function Content({
         ? Animated.spring(step, { toValue: 1, ...motion.pop, useNativeDriver: true })
         : Animated.timing(step, {
             toValue: 1,
-            duration: i === 5 ? motion.count : i === 0 ? motion.slow : motion.base,
+            duration: i === 0 ? motion.slow : motion.base,
             easing: motion.easing,
             useNativeDriver: true,
           });
@@ -159,18 +160,6 @@ function Content({
     return () => all.stop();
   }, [steps, reduceMotion, skipped]);
 
-  // o anel troca para verde quando passa de 100% (tempo aproximado: o anel desacelera)
-  useEffect(() => {
-    if (!willCross || !animateRing) return;
-    const share = (1 - startFraction) / Math.max(0.001, endFraction - startFraction);
-    const id = setTimeout(() => setRingFull(true), DELAYS[5] + durations.progress * share * 0.7);
-    return () => clearTimeout(id);
-  }, [willCross, animateRing, startFraction, endFraction]);
-
-  useEffect(() => {
-    if (crossed && willCross) haptic.success();
-  }, [crossed, willCross]);
-
   // um anúncio com tudo, e o foco no título
   useEffect(() => {
     const parts = [
@@ -178,7 +167,7 @@ function Content({
       gains.xp > 0 ? `Mais ${formatNumber(gains.xp)} pontos de experiência` : null,
       gains.words > 0 ? `${formatNumber(gains.words)} palavras` : null,
       gains.goalMet ? "Meta de hoje cumprida" : null,
-      gains.goalMet ? `Ofensiva: ${formatDays(gains.streak)}` : null,
+      streakUp ? `Ofensiva: ${formatDays(gains.streak)}` : null,
       gains.achievements.length
         ? `Conquista: ${gains.achievements.map((a) => a.title).join(", ")}`
         : null,
@@ -196,6 +185,11 @@ function Content({
     ],
   });
 
+  if (finished && onFinishForToday) {
+    const streak = streakHidden === false ? gains.streak : null;
+    return <UntilTomorrow streak={streak} onDone={onFinishForToday} />;
+  }
+
   return (
     <View
       style={[styles.screen, { paddingTop: insets?.top ?? 0 }]}
@@ -206,301 +200,302 @@ function Content({
         <IconButton icon="close" accessibilityLabel="Fechar" onPress={onClose} />
       </View>
 
-      {finished ? (
-        <Goodbye streak={gains.streak} goalMet={goal?.completed ?? gains.goalMet} />
-      ) : (
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.header}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Animated.Image
+            source={require("../../assets/images/celebrate.png")}
+            style={[
+              styles.illustration,
+              {
+                opacity: steps[0].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1],
+                  extrapolate: "clamp",
+                }),
+                transform: [
+                  { scale: steps[0].interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) },
+                ],
+              },
+            ]}
+            accessibilityIgnoresInvertColors
+            accessible={false}
+          />
+          <Animated.View style={[styles.headerText, fade(1, 8)]}>
+            <AppText ref={titleRef} variant="h1" accessibilityRole="header" style={styles.center}>
+              {title}
+            </AppText>
+            <AppText color="textSecondary" style={styles.center} numberOfLines={2}>
+              {articleTitle}
+            </AppText>
+          </Animated.View>
+        </View>
+
+        <View style={styles.tiles}>
+          <Animated.View style={[styles.tileWrap, fade(2, 12)]}>
+            <Tile icon="flash" iconColor="gold600" background="gold50" border="gold100">
+              <CountUp
+                to={gains.xp}
+                prefix="+"
+                color="gold700"
+                reduceMotion={reduceMotion}
+                skipped={skipped}
+                delay={300}
+              />
+              <AppText variant="caption" color="gold700">
+                XP
+              </AppText>
+            </Tile>
+          </Animated.View>
+          <Animated.View style={[styles.tileWrap, fade(3, 12)]}>
+            <Tile icon="book" iconColor="primary600" background="primary50" border="primary200">
+              <CountUp
+                to={gains.words}
+                color="primary700"
+                reduceMotion={reduceMotion}
+                skipped={skipped}
+                delay={360}
+              />
+              <AppText variant="caption" color="primary700">
+                palavras
+              </AppText>
+            </Tile>
+          </Animated.View>
+          <Animated.View style={[styles.tileWrap, fade(4, 12)]}>
+            <Tile icon="time-outline" iconColor="textSecondary" background="surface" border="border">
+              <AppText variant="stat">{formatNumber(minutes)} min</AppText>
+              <AppText variant="caption" color="textSecondary">
+                de leitura
+              </AppText>
+            </Tile>
+          </Animated.View>
+        </View>
+
+        {target !== null && goal && (
+          <Animated.View
+            style={[styles.card, styles.goal, crossed ? styles.goalDone : styles.goalOpen, fade(5, 12)]}
+            accessible
+            accessibilityLabel={
+              goal.completed
+                ? `Meta de hoje cumprida: ${formatNumber(goal.words_today)} de ${formatNumber(target)} palavras`
+                : `Faltam ${formatNumber(goal.remaining)} palavras para a meta de hoje`
+            }
+          >
+            <GoalRing
+              from={startFraction}
+              to={endFraction}
+              delay={DELAYS[5]}
+              skipped={skipped}
+              color={crossed ? colors.success500 : colors.primary500}
+              onFull={willCross ? onRingFull : undefined}
+            >
+              {crossed ? (
+                <Ionicons name="checkmark" size={26} color={colors.success600} />
+              ) : (
+                <AppText variant="small" style={styles.semibold}>
+                  {Math.round(endFraction * 100)}%
+                </AppText>
+              )}
+            </GoalRing>
+            <View style={styles.flex}>
+              <AppText style={styles.semibold}>
+                {crossed ? "Meta de hoje cumprida" : `Faltam ${formatNumber(goal.remaining)} palavras`}
+              </AppText>
+              <AppText
+                variant="small"
+                color={crossed ? "success700" : "textSecondary"}
+                style={styles.semibold}
+              >
+                {formatNumber(goal.words_today)} / {formatNumber(target)}
+              </AppText>
+            </View>
+          </Animated.View>
+        )}
+
+        {streakUp && (
+          <View
+            style={[styles.card, styles.streakCard]}
+            accessible
+            accessibilityLabel={[
+              `${formatDays(gains.streak)} de ofensiva`,
+              streakNote(gains.streak, longestStreak),
+              milestone,
+            ]
+              .filter(Boolean)
+              .join(". ")}
+          >
             <Animated.Image
-              source={require("../../assets/images/celebrate.png")}
+              source={require("../../assets/images/streak.png")}
               style={[
-                styles.illustration,
+                styles.flame,
                 {
-                  opacity: steps[0].interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 1],
-                    extrapolate: "clamp",
-                  }),
                   transform: [
-                    { scale: steps[0].interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) },
+                    {
+                      // antecipação: encolhe, cresce e assenta
+                      scale: steps[6].interpolate({
+                        inputRange: [0, 0.3, 0.7, 1],
+                        outputRange: [1, 0.9, 1.18, 1],
+                        extrapolate: "clamp",
+                      }),
+                    },
                   ],
                 },
               ]}
               accessibilityIgnoresInvertColors
               accessible={false}
             />
-            <Animated.View style={[styles.headerText, fade(1, 8)]}>
-              <AppText ref={titleRef} variant="h1" accessibilityRole="header" style={styles.center}>
-                {title}
-              </AppText>
-              <AppText color="textSecondary" style={styles.center} numberOfLines={2}>
-                {articleTitle}
-              </AppText>
-            </Animated.View>
-          </View>
-
-          <View style={styles.tiles}>
-            <Animated.View style={[styles.tileWrap, fade(2, 12)]}>
-              <Tile icon="flash" iconColor="gold600" background="gold50" border="gold100">
-                <CountUp
-                  to={gains.xp}
-                  prefix="+"
-                  color="gold700"
-                  reduceMotion={reduceMotion}
-                  skipped={skipped}
-                  delay={300}
-                />
-                <AppText variant="caption" color="gold700">
-                  XP
-                </AppText>
-              </Tile>
-            </Animated.View>
-            <Animated.View style={[styles.tileWrap, fade(3, 12)]}>
-              <Tile icon="book" iconColor="primary600" background="primary50" border="primary200">
-                <CountUp
-                  to={gains.words}
-                  color="primary700"
-                  reduceMotion={reduceMotion}
-                  skipped={skipped}
-                  delay={360}
-                />
-                <AppText variant="caption" color="primary700">
-                  palavras
-                </AppText>
-              </Tile>
-            </Animated.View>
-            <Animated.View style={[styles.tileWrap, fade(4, 12)]}>
-              <Tile icon="time-outline" iconColor="textSecondary" background="surface" border="border">
-                <AppText variant="stat">{formatNumber(minutes)} min</AppText>
-                <AppText variant="caption" color="textSecondary">
-                  de leitura
-                </AppText>
-              </Tile>
-            </Animated.View>
-          </View>
-
-          {target !== null && goal && (
-            <Animated.View
-              style={[styles.card, styles.goalCard, crossed ? styles.goalDone : styles.goalOpen, fade(5, 12)]}
-              accessible
-              accessibilityLabel={
-                goal.completed
-                  ? `Meta de hoje cumprida: ${formatNumber(goal.words_today)} de ${formatNumber(target)} palavras`
-                  : `Faltam ${formatNumber(goal.remaining)} palavras para a meta de hoje`
-              }
-            >
-              <GoalRing
-                from={startFraction}
-                to={endFraction}
-                size={64}
-                color={crossed ? colors.success500 : colors.primary500}
-                animate={animateRing}
-                delay={DELAYS[5]}
-              >
-                {crossed ? (
-                  <Ionicons name="checkmark" size={26} color={colors.success600} />
-                ) : (
-                  <AppText variant="small" style={styles.semibold}>
-                    {Math.round(endFraction * 100)}%
-                  </AppText>
-                )}
-              </GoalRing>
-              <View style={styles.flex}>
-                <AppText variant="small" style={styles.semibold}>
-                  {crossed ? "Meta de hoje cumprida" : `Faltam ${formatNumber(goal.remaining)} palavras`}
-                </AppText>
-                <AppText
-                  variant="small"
-                  color={crossed ? "success700" : "textSecondary"}
-                  style={styles.semibold}
-                >
-                  {formatNumber(goal.words_today)} / {formatNumber(target)}
-                </AppText>
-              </View>
-            </Animated.View>
-          )}
-
-          {gains.goalMet && (
-            <View
-              style={[styles.card, styles.streakCard]}
-              accessible
-              accessibilityLabel={[
-                `${formatDays(gains.streak)} de ofensiva`,
-                streakNote(gains.streak, longestStreak),
-                milestone,
-              ]
-                .filter(Boolean)
-                .join(". ")}
-            >
-              <Animated.Image
-                source={require("../../assets/images/streak.png")}
-                style={[
-                  styles.flame,
-                  {
-                    transform: [
-                      {
-                        scale: steps[6].interpolate({
-                          inputRange: [0, 0.5, 1],
-                          outputRange: [1, 1.15, 1],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-                accessibilityIgnoresInvertColors
-                accessible={false}
-              />
-              <View style={styles.flex}>
-                <View style={styles.flipBox}>
-                  {/* o número antigo sobe e sai; o novo entra de baixo (+1) */}
-                  <Animated.View
-                    style={[
-                      styles.flipLayer,
-                      {
-                        opacity: steps[6].interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-                        transform: [
-                          {
-                            translateY: steps[6].interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0, -16],
-                            }),
-                          },
-                        ],
-                      },
-                    ]}
-                    importantForAccessibility="no-hide-descendants"
-                  >
-                    <AppText variant="h3">{formatDays(Math.max(0, gains.streak - 1))} de ofensiva</AppText>
-                  </Animated.View>
-                  <Animated.View
-                    style={{
-                      opacity: steps[6].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, 1],
-                        extrapolate: "clamp",
-                      }),
+            <View style={styles.flex}>
+              <View style={styles.flipBox}>
+                {/* o número antigo sobe e sai; o novo entra de baixo (+1) */}
+                <Animated.View
+                  style={[
+                    styles.flipLayer,
+                    {
+                      opacity: steps[6].interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
                       transform: [
                         {
                           translateY: steps[6].interpolate({
                             inputRange: [0, 1],
-                            outputRange: [16, 0],
+                            outputRange: [0, -16],
                           }),
                         },
                       ],
-                    }}
-                  >
-                    <AppText variant="h3">{formatDays(gains.streak)} de ofensiva</AppText>
-                  </Animated.View>
-                </View>
-                <AppText variant="small" color="streak700">
-                  {streakNote(gains.streak, longestStreak)}
-                </AppText>
-                {milestone && (
-                  <AppText variant="small" style={styles.semibold}>
-                    {milestone}
-                  </AppText>
-                )}
-              </View>
-            </View>
-          )}
-
-          {shownAchievements.map((achievement) => (
-            <Animated.View
-              key={achievement.id}
-              style={[styles.card, styles.achievementCard, fade(7, 16)]}
-              accessible
-              accessibilityLabel={`Conquista desbloqueada: ${achievement.title}`}
-            >
-              <Animated.View
-                style={[
-                  styles.medal,
-                  {
+                    },
+                  ]}
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <AppText variant="h3">{formatDays(Math.max(0, gains.streak - 1))} de ofensiva</AppText>
+                </Animated.View>
+                <Animated.View
+                  style={{
+                    opacity: steps[6].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                      extrapolate: "clamp",
+                    }),
                     transform: [
                       {
-                        rotate: steps[7].interpolate({
+                        translateY: steps[6].interpolate({
                           inputRange: [0, 1],
-                          outputRange: ["-8deg", "0deg"],
+                          outputRange: [16, 0],
                         }),
                       },
-                      { scale: steps[7].interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) },
                     ],
-                  },
-                ]}
-              >
-                <Ionicons name={achievementIcon(achievement.icon)} size={24} color={colors.gold700} />
-              </Animated.View>
-              <View style={styles.flex}>
-                <AppText variant="overline" color="gold700">
-                  Conquista desbloqueada
-                </AppText>
-                <AppText variant="h3">{achievement.title}</AppText>
+                  }}
+                >
+                  <AppText variant="h3">{formatDays(gains.streak)} de ofensiva</AppText>
+                </Animated.View>
               </View>
-            </Animated.View>
-          ))}
-          {moreAchievements > 0 && (
-            <AppText variant="small" color="gold700" style={[styles.center, styles.semibold]}>
-              +{moreAchievements} {moreAchievements === 1 ? "conquista" : "conquistas"}
-            </AppText>
-          )}
-        </ScrollView>
-      )}
-
-      <View style={[styles.footer, { paddingBottom: (insets?.bottom ?? 0) + spacing.md }]}>
-        {finished && onFinishForToday ? (
-          <Button title="Voltar ao início" onPress={onFinishForToday} style={styles.primary} />
-        ) : (
-          <>
-            <Button
-              title={(primaryAction ?? secondaryAction).label}
-              onPress={(primaryAction ?? secondaryAction).onPress}
-              style={styles.primary}
-            />
-            <View style={styles.secondaryRow}>
-              {primaryAction && (
-                <Button
-                  variant="ghost"
-                  title={secondaryAction.label}
-                  onPress={secondaryAction.onPress}
-                  style={styles.secondary}
-                />
-              )}
-              {onFinishForToday && goal?.completed && (
-                <Button
-                  variant="ghost"
-                  title="Terminar por hoje"
-                  onPress={() => setFinished(true)}
-                  style={styles.secondary}
-                />
+              <AppText variant="small" color="streak700">
+                {streakNote(gains.streak, longestStreak)}
+              </AppText>
+              {milestone && (
+                <AppText variant="small" style={styles.semibold}>
+                  {milestone}
+                </AppText>
               )}
             </View>
+          </View>
+        )}
+
+        {shownAchievements.map((achievement) => (
+          <Animated.View
+            key={achievement.id}
+            style={[styles.card, styles.achievementCard, fade(7, 16)]}
+            accessible
+            accessibilityLabel={`Conquista desbloqueada: ${achievement.title}`}
+          >
+            <Animated.View
+              style={[
+                styles.medal,
+                {
+                  transform: [
+                    {
+                      rotate: steps[7].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ["-8deg", "0deg"],
+                      }),
+                    },
+                    { scale: steps[7].interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) },
+                  ],
+                },
+              ]}
+            >
+              <Ionicons name={achievementIcon(achievement.icon)} size={24} color={colors.gold700} />
+            </Animated.View>
+            <View style={styles.flex}>
+              <AppText variant="overline" color="gold700">
+                Conquista desbloqueada
+              </AppText>
+              <AppText variant="h3">{achievement.title}</AppText>
+            </View>
+          </Animated.View>
+        ))}
+        {moreAchievements > 0 && (
+          <AppText variant="small" color="gold700" style={[styles.center, styles.semibold]}>
+            +{moreAchievements} {moreAchievements === 1 ? "conquista" : "conquistas"}
+          </AppText>
+        )}
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: (insets?.bottom ?? 0) + spacing.md }]}>
+        {primaryAction ? (
+          <>
+            <Button
+              title={primaryAction.label}
+              onPress={primaryAction.onPress}
+              style={styles.primary}
+            />
+            <Button variant="ghost" title={secondaryAction.label} onPress={secondaryAction.onPress} />
           </>
+        ) : (
+          <Button
+            title={secondaryAction.label}
+            onPress={secondaryAction.onPress}
+            style={styles.primary}
+          />
+        )}
+        {onFinishForToday && goal?.completed && (
+          <Button variant="ghost" title="Terminar por hoje" onPress={() => setFinished(true)} />
         )}
       </View>
-
-      <Confetti active={crossed && willCross} animate={reduceMotion === false && !skipped} />
+      {willCross && ringFull && <Confetti />}
     </View>
   );
 }
 
-/** Fim positivo da sessão: o "até amanhã" que fecha o dia no alto (regra do pico-fim). */
-function Goodbye({ streak, goalMet }: { streak: number; goalMet: boolean }) {
+// Fim positivo do dia (pico-fim): sem "mais um", só o descanso merecido.
+// streak null: a pessoa escondeu a ofensiva
+function UntilTomorrow({ streak, onDone }: { streak: number | null; onDone: () => void }) {
+  const insets = useContext(SafeAreaInsetsContext);
+  const titleRef = useRef<Text>(null);
+  useEffect(() => {
+    if (titleRef.current) AccessibilityInfo.sendAccessibilityEvent(titleRef.current, "focus");
+  }, []);
+
   return (
-    <Reanimated.View entering={enterFrom(0)} style={styles.goodbye}>
+    <View
+      style={[
+        styles.screen,
+        styles.rest,
+        { paddingTop: insets?.top ?? 0, paddingBottom: (insets?.bottom ?? 0) + spacing.xl },
+      ]}
+    >
       <Image
         source={require("../../assets/images/mascot.png")}
         style={styles.illustration}
         accessibilityIgnoresInvertColors
         accessible={false}
       />
-      <AppText variant="h1" accessibilityRole="header" style={styles.center}>
+      <AppText ref={titleRef} variant="h1" accessibilityRole="header" style={styles.center}>
         Até amanhã!
       </AppText>
       <AppText color="textSecondary" style={styles.center}>
-        {goalMet
-          ? `Meta cumprida e ofensiva de ${formatDays(streak)} garantida. Descansar também faz parte.`
-          : "Boa leitura hoje. Descansar também faz parte."}
+        {streak === null
+          ? "Meta cumprida. Descansar também faz parte."
+          : `Meta cumprida e ofensiva de ${formatDays(streak)} garantida. Descansar também faz parte.`}
       </AppText>
-    </Reanimated.View>
+      <Button title="Voltar ao início" onPress={onDone} style={[styles.primary, styles.restAction]} />
+    </View>
   );
 }
 
@@ -554,6 +549,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.lg, borderWidth: 1, padding: spacing.lg, gap: spacing.md },
   goalOpen: { backgroundColor: colors.surface, borderColor: colors.border },
   goalDone: { backgroundColor: colors.success100, borderColor: colors.success500 },
+  goal: { flexDirection: "row", alignItems: "center" },
   semibold: { fontFamily: fontFamily.semibold },
   streakCard: {
     flexDirection: "row",
@@ -590,14 +586,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   primary: { minHeight: 52 },
-  secondaryRow: { flexDirection: "row", gap: spacing.xs },
-  secondary: { flex: 1 },
-  goalCard: { flexDirection: "row", alignItems: "center" },
-  goodbye: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-  },
+  rest: { alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.xl },
+  restAction: { alignSelf: "stretch", marginTop: spacing.lg },
 });

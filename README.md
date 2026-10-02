@@ -17,7 +17,7 @@ readup/
 - **Progresso validado por tempo**: registro de leitura e palavras lidas com validação contra leitura apressada/falsa.
 - **Meta diária**: acompanhamento diário do progresso de leitura em relação à meta definida.
 - **XP**: acúmulo de pontos de experiência por leituras concluídas e metas batidas.
-- **Ofensiva (streak)**: contagem de dias consecutivos atingindo a meta de leitura e recorde histórico.
+- **Ofensiva (streak)**: dias consecutivos com o mínimo do dia (50 palavras lidas) e recorde histórico. Meta batida ganha a chama dourada. 2 escudos cobrem dias em branco sozinhos (1 volta a cada 7 dias de ofensiva, máximo 2). No app, a ofensiva pode ser escondida no Perfil.
 - **Conquistas (achievements)**: medalhas desbloqueadas automaticamente por marcos de leitura, ofensiva e vocabulário.
 - **Vocabulário com tradução**: consulta instantânea de palavras via MyMemory com cache global e lista pessoal de palavras salvas.
 - **Revisão espaçada**: palavras salvas voltam em cartões (caixas de Leitner: 1, 3, 7, 14, 30 e 90 dias), até 20 respostas por dia e +2 XP por acerto (teto de 20 XP/dia).

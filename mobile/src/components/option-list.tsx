@@ -33,7 +33,7 @@ export function OptionList<T extends string | number>({
           <PressableScale
             key={String(option.value)}
             onPress={() => {
-              if (!selected) haptic.selection();
+              if (!selected) haptic.select();
               onChange(option.value);
             }}
             disabled={disabled}

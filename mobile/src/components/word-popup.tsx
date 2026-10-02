@@ -39,15 +39,18 @@ type Props = {
 // contexto (com tradução sob demanda) e salvar/remover. Frase (dedo segurado): frase, ouvir e
 // tradução.
 export function WordPopup({ selection, ...props }: Props) {
+  // a última palavra/frase continua no painel enquanto ele desce ao fechar
+  const [shown, setShown] = useState(selection);
+  if (selection && selection !== shown) setShown(selection);
   return (
     <BottomSheet visible={selection !== null} onClose={props.onClose}>
-      {selection &&
-        (selection.word === null ? (
-          <SentenceContent key={selection.sentence} sentence={selection.sentence} {...props} />
+      {shown &&
+        (shown.word === null ? (
+          <SentenceContent key={shown.sentence} sentence={shown.sentence} {...props} />
         ) : (
           <Content
-            key={selection.word}
-            selection={{ word: selection.word, sentence: selection.sentence }}
+            key={shown.word}
+            selection={{ word: shown.word, sentence: shown.sentence }}
             {...props}
           />
         ))}
@@ -203,7 +206,7 @@ function Content({
       const created = await saveWord(t, { word, article_id: articleId, context: sentence });
       setSavedId(created.id);
       setJustSaved(true);
-      haptic.light();
+      haptic.tap();
     }, "Não foi possível salvar. Tente novamente.");
 
   const remove = () =>

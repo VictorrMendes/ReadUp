@@ -1,32 +1,16 @@
-import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 
-import { durations } from "@/lib/motion";
-import { colors, radius } from "@/theme";
+import { useReduceMotion } from "@/lib/use-reduce-motion";
+import { colors, motion, radius } from "@/theme";
 
-type Props = {
-  value: number;
-  tone?: "primary" | "success";
-  size?: "default" | "thin" | "large";
-  /** enche a partir do zero ao aparecer (tela de conclusão, meta) */
-  fromZero?: boolean;
-};
+type Props = { value: number; tone?: "primary" | "success"; size?: "default" | "thin" | "large" };
 
-// enche desacelerando (Material "emphasized decelerate")
-const FILL_EASING = cubicBezier(0.05, 0.7, 0.1, 1);
-
-/** Barra de progresso; mudanças de valor deslizam em ~600 ms (instantâneo com "reduzir movimento"). */
-export function ProgressBar({ value, tone = "primary", size = "default", fromZero = false }: Props) {
+// A barra enche suave até o valor novo (transição CSS do Reanimated); com "reduzir movimento"
+// (ou ainda desconhecido) troca direto.
+export function ProgressBar({ value, tone = "primary", size = "default" }: Props) {
   const percent = Math.round(Math.min(1, Math.max(0, value)) * 100);
-  const reduceMotion = useReducedMotion();
-  const [shown, setShown] = useState(fromZero && !reduceMotion ? 0 : percent);
-
-  useEffect(() => {
-    // próximo quadro: a barra já existe com o valor antigo e a transição tem de onde partir
-    const frame = requestAnimationFrame(() => setShown(percent));
-    return () => cancelAnimationFrame(frame);
-  }, [percent]);
+  const reduceMotion = useReduceMotion();
 
   return (
     <View
@@ -40,11 +24,11 @@ export function ProgressBar({ value, tone = "primary", size = "default", fromZer
           styles.fill,
           size !== "default" && styles[size],
           {
-            width: `${shown}%`,
+            width: `${percent}%`,
             backgroundColor: tone === "success" ? colors.success500 : colors.primary500,
-            transitionProperty: "width",
-            transitionDuration: reduceMotion ? 0 : durations.progress,
-            transitionTimingFunction: FILL_EASING,
+            transitionProperty: ["width", "backgroundColor"],
+            transitionDuration: reduceMotion === false ? motion.progress : 0,
+            transitionTimingFunction: "ease-out",
           },
         ]}
       />

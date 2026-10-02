@@ -1,16 +1,23 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen, waitFor } from "@testing-library/react-native";
+import { AccessibilityInfo } from "react-native";
 
 import { Confetti } from "./confetti";
 
-test("cai quando ativo e com animação", async () => {
-  await render(<Confetti active animate random={() => 0.5} />);
-  expect(screen.getByTestId("confetti", { includeHiddenElements: true })).toBeOnTheScreen();
+afterEach(() => jest.restoreAllMocks());
+
+test("cai quando o sistema não pede menos movimento", async () => {
+  jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(false);
+  await render(<Confetti />);
+
+  await waitFor(() =>
+    expect(screen.getByTestId("confetti", { includeHiddenElements: true })).toBeOnTheScreen(),
+  );
 });
 
-test.each([
-  [false, true],
-  [true, false], // reduzir movimento: nada cai
-])("não aparece com active=%p animate=%p", async (active, animate) => {
-  await render(<Confetti active={active} animate={animate} />);
+test("com reduzir movimento, nada cai", async () => {
+  jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(true);
+  await render(<Confetti />);
+
+  await waitFor(() => expect(AccessibilityInfo.isReduceMotionEnabled).toHaveBeenCalled());
   expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).not.toBeOnTheScreen();
 });

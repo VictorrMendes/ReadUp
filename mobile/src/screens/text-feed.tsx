@@ -126,7 +126,7 @@ export function TextFeed({ initialLevel, category }: Props) {
             <PressableScale
               key={option ?? "all"}
               onPress={() => {
-                if (!selected) haptic.selection();
+                if (!selected) haptic.select();
                 selectLevel(option);
               }}
               accessibilityRole="button"

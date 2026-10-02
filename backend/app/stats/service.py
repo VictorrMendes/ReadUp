@@ -11,7 +11,7 @@ from app.articles.models import Article
 from app.books.models import Book
 from app.gamification.achievements import Metrics
 from app.gamification.models import Streak
-from app.gamification.streak import effective_streak, next_streak
+from app.gamification.streak import MIN_STREAK_WORDS, effective_streak, next_streak
 from app.gamification.xp import DAILY_GOAL_XP, completion_xp, xp_for_words
 from app.goals.service import active_target
 from app.reading.models import ReadingProgress
@@ -33,15 +33,16 @@ def _count_streak_day(session: Session, user_id: int, today: date) -> None:
     streak = session.scalars(
         select(Streak).where(Streak.user_id == user_id).with_for_update()
     ).one()
-    streak.current, streak.longest = next_streak(
-        streak.current, streak.longest, streak.last_active_day, today
+    streak.current, streak.longest, streak.freezes = next_streak(
+        streak.current, streak.longest, streak.freezes, streak.last_active_day, today
     )
     streak.last_active_day = today
 
 
 def _goal_bonus(session: Session, user_id: int, today: date, words_today: int) -> int:
-    """Vira a marca da meta do dia se as palavras de hoje cumprem a meta ativa: +50 XP e conta o
-    dia na ofensiva. Só quem vira a marca ganha (uma vez por dia). Devolve o XP ganho."""
+    """Vira a marca da meta do dia se as palavras de hoje cumprem a meta ativa: +50 XP (a chama
+    dourada). Só quem vira a marca ganha (uma vez por dia). Devolve o XP ganho. A ofensiva já
+    contou o dia antes: a menor meta é MIN_STREAK_WORDS."""
     target = active_target(session, user_id)
     if target is None or words_today < target:
         return 0
@@ -51,10 +52,7 @@ def _goal_bonus(session: Session, user_id: int, today: date, words_today: int) -
         .values(goal_met=True, xp=DailyStats.xp + DAILY_GOAL_XP)
         .returning(DailyStats.user_id)
     )
-    if flipped is None:
-        return 0
-    _count_streak_day(session, user_id, today)
-    return DAILY_GOAL_XP
+    return 0 if flipped is None else DAILY_GOAL_XP
 
 
 def settle_goal(session: Session, user_id: int) -> int:
@@ -102,6 +100,10 @@ def add_daily_activity(
     ).one()
     row = (DailyStats.user_id == user_id) & (DailyStats.day == today)
 
+    # mínimo do dia: conta a ofensiva uma vez, no envio que cruza o limite (linha do dia travada)
+    if words_today - words < MIN_STREAK_WORDS <= words_today:
+        _count_streak_day(session, user_id, today)
+
     gained = xp_for_words(words_today - words, words_today)
     if completed_words is not None:
         gained += completion_xp(completed_words)
@@ -126,18 +128,25 @@ def goal_met_today(session: Session, user_id: int) -> bool:
 class StreakStatus(BaseModel):
     streak_current: int  # efetiva: 0 se quebrou
     streak_longest: int
-    streak_active_today: bool
+    streak_active_today: bool  # mínimo do dia feito
+    streak_freezes: int  # escudos restantes (0 com a ofensiva quebrada)
 
 
 def streak_status(session: Session, user_id: int) -> StreakStatus:
     today = local_today()
     streak = session.get(Streak, user_id)
     if streak is None:
-        return StreakStatus(streak_current=0, streak_longest=0, streak_active_today=False)
+        return StreakStatus(
+            streak_current=0, streak_longest=0, streak_active_today=False, streak_freezes=0
+        )
+    current, freezes = effective_streak(
+        streak.current, streak.freezes, streak.last_active_day, today
+    )
     return StreakStatus(
-        streak_current=effective_streak(streak.current, streak.last_active_day, today),
+        streak_current=current,
         streak_longest=streak.longest,
         streak_active_today=streak.last_active_day == today,
+        streak_freezes=freezes,
     )
 
 
@@ -242,6 +251,7 @@ class DailyPoint(BaseModel):
     words_read: int
     xp: int
     goal_met: bool
+    streak_kept: bool  # mínimo do dia feito
 
 
 def daily(session: Session, user_id: int, days: int) -> list[DailyPoint]:
@@ -261,8 +271,14 @@ def daily(session: Session, user_id: int, days: int) -> list[DailyPoint]:
         day = first + timedelta(days=offset)
         row = rows.get(day)
         points.append(
-            DailyPoint(day=day, words_read=row.words_read, xp=row.xp, goal_met=row.goal_met)
+            DailyPoint(
+                day=day,
+                words_read=row.words_read,
+                xp=row.xp,
+                goal_met=row.goal_met,
+                streak_kept=row.words_read >= MIN_STREAK_WORDS,
+            )
             if row
-            else DailyPoint(day=day, words_read=0, xp=0, goal_met=False)
+            else DailyPoint(day=day, words_read=0, xp=0, goal_met=False, streak_kept=False)
         )
     return points

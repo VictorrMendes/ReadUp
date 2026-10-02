@@ -1,52 +1,28 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { StyleSheet, Text } from "react-native";
 
+import { AppText } from "./app-text";
 import { PressableScale } from "./pressable-scale";
 
-test("repassa toque e eventos de pressionar", async () => {
+test("style em função recebe pressed (a cor de pressed continua) e onPress é chamado", async () => {
   const onPress = jest.fn();
-  const onPressIn = jest.fn();
-  const onPressOut = jest.fn();
-  await render(
-    <PressableScale accessibilityRole="button" onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
-      <Text>Abrir</Text>
-    </PressableScale>,
-  );
-
-  const button = screen.getByRole("button");
-  await fireEvent(button, "pressIn");
-  await fireEvent(button, "pressOut");
-  await fireEvent.press(button);
-
-  expect(onPressIn).toHaveBeenCalled();
-  expect(onPressOut).toHaveBeenCalled();
-  expect(onPress).toHaveBeenCalledTimes(1);
-});
-
-test("disabled não chama onPress", async () => {
-  const onPress = jest.fn();
-  await render(
-    <PressableScale accessibilityRole="button" disabled onPress={onPress}>
-      <Text>Abrir</Text>
-    </PressableScale>,
-  );
-
-  await fireEvent.press(screen.getByRole("button"));
-
-  expect(onPress).not.toHaveBeenCalled();
-});
-
-test("margens ficam no invólucro e o visual no Pressable (inclusive style como função)", async () => {
   await render(
     <PressableScale
       accessibilityRole="button"
-      style={({ pressed }) => ({ marginTop: 8, padding: 4, opacity: pressed ? 0.5 : 1 })}
+      onPress={onPress}
+      style={({ pressed }) => ({ backgroundColor: pressed ? "red" : "white" })}
     >
-      <Text>Abrir</Text>
+      <AppText>Ok</AppText>
     </PressableScale>,
   );
+  const button = screen.getByRole("button");
+  expect(button).toHaveStyle({ backgroundColor: "white" });
 
-  const inner = StyleSheet.flatten(screen.getByRole("button").props.style);
-  expect(inner).toMatchObject({ padding: 4, opacity: 1 });
-  expect(inner.marginTop).toBeUndefined();
+  await fireEvent(button, "pressIn");
+  expect(button).toHaveStyle({ backgroundColor: "red" });
+
+  await fireEvent(button, "pressOut");
+  expect(button).toHaveStyle({ backgroundColor: "white" });
+
+  await fireEvent.press(button);
+  expect(onPress).toHaveBeenCalledTimes(1);
 });

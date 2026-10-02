@@ -1,95 +1,96 @@
 import { useEffect, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
+  Easing,
   useAnimatedProps,
+  useAnimatedReaction,
   useSharedValue,
   withDelay,
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
+import { scheduleOnRN } from "react-native-worklets";
 
-import { durations, easings } from "@/lib/motion";
-import { colors } from "@/theme";
+import { colors, motion } from "@/theme";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-type Props = {
-  /** fração inicial (0–1): o progresso de antes desta sessão */
-  from?: number;
-  /** fração final (0–1) */
-  to: number;
-  size?: number;
-  strokeWidth?: number;
-  color?: string;
-  /** false: já desenha no valor final (reduzir movimento, sequência pulada) */
-  animate?: boolean;
-  delay?: number;
-  duration?: number;
-  /** conteúdo no centro do anel (número, ícone) */
-  children?: ReactNode;
-};
-
 const clamp = (n: number) => Math.min(1, Math.max(0, n));
 
-/**
- * Anel de progresso da meta (gradiente de meta: ver o quanto falta puxa para completar).
- * Enche de `from` até `to` desacelerando; decorativo para leitor de tela (quem usa descreve).
- */
+type Props = {
+  from?: number; // fração de antes (0–1): o anel começa aqui
+  to: number;
+  color: string;
+  size?: number;
+  stroke?: number;
+  delay?: number;
+  skipped?: boolean; // pula direto para `to`
+  onFull?: () => void; // chamado quando o arco chega a 100% (não quando já começa cheio)
+  children?: ReactNode; // centro do anel
+};
+
+// Anel da meta: enche de `from` até `to` desacelerando (M3 emphasized decelerate). Decorativo:
+// quem usa descreve o valor para o leitor de tela. "Reduzir movimento": o Reanimated pula direto.
 export function GoalRing({
   from = 0,
   to,
-  size = 72,
-  strokeWidth = 8,
-  color = colors.primary500,
-  animate = true,
+  color,
+  size = 64,
+  stroke = 8,
   delay = 0,
-  duration = durations.progress,
+  skipped = false,
+  onFull,
   children,
 }: Props) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = useSharedValue(animate ? clamp(from) : clamp(to));
+  const r = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * r;
+  const progress = useSharedValue(clamp(from));
 
   useEffect(() => {
-    progress.set(
-      animate
-        ? withDelay(delay, withTiming(clamp(to), { duration, easing: easings.enter }))
-        : clamp(to),
-    );
-  }, [progress, to, animate, delay, duration]);
+    const target = clamp(to);
+    const fill = withTiming(target, {
+      duration: motion.ring,
+      easing: Easing.bezier(0.05, 0.7, 0.1, 1),
+    });
+    progress.set(skipped ? target : withDelay(delay, fill));
+  }, [to, delay, skipped, progress]);
 
-  const animatedProps = useAnimatedProps(() => ({
+  useAnimatedReaction(
+    () => progress.get() >= 1,
+    (full, wasFull) => {
+      if (full && wasFull === false && onFull) scheduleOnRN(onFull);
+    },
+  );
+
+  const arcProps = useAnimatedProps(() => ({
     strokeDashoffset: circumference * (1 - progress.get()),
   }));
 
   return (
     <View
-      style={{ width: size, height: size }}
-      importantForAccessibility="no-hide-descendants"
-      accessibilityElementsHidden
       testID="goal-ring"
+      style={{ width: size, height: size }}
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
     >
-      <Svg width={size} height={size}>
+      <Svg width={size} height={size} style={styles.rotate}>
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={radius}
+          r={r}
           stroke={colors.border}
-          strokeWidth={strokeWidth}
+          strokeWidth={stroke}
           fill="none"
         />
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
-          r={radius}
+          r={r}
           stroke={color}
-          strokeWidth={strokeWidth}
+          strokeWidth={stroke}
           strokeLinecap="round"
-          strokeDasharray={`${circumference} ${circumference}`}
-          animatedProps={animatedProps}
+          strokeDasharray={circumference}
           fill="none"
-          // começa no topo (12h) e enche no sentido horário
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          animatedProps={arcProps}
         />
       </Svg>
       {children && <View style={styles.center}>{children}</View>}
@@ -98,13 +99,6 @@ export function GoalRing({
 }
 
 const styles = StyleSheet.create({
-  center: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  rotate: { transform: [{ rotate: "-90deg" }] }, // o arco começa no topo
+  center: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
 });

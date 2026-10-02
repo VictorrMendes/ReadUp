@@ -1,22 +1,34 @@
 import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
-// Háptica com parcimônia e sempre junto do visual (Apple HIG / Android haptics): só em momentos
-// que significam algo. Tocar em botão comum não vibra; erro não vibra (nada de punição).
-// Falha (aparelho sem motor, web) é ignorada: a háptica é bônus.
-
-function safely(run: () => Promise<void>) {
-  if (Platform.OS === "web") return;
-  run().catch(() => {});
-}
+// Háptica pouca e sincronizada com o visual (plan.txt §3). No Android, as constantes do sistema
+// (sem permissão VIBRATE). Nunca é o único sinal: aparelho sem motor ou em economia ignora.
+const android = Platform.OS === "android";
+const ignore = () => {};
 
 export const haptic = {
-  /** Palavra salva, chip escolhido. */
-  light: () => safely(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
-  /** Segurar para traduzir a frase. */
-  medium: () => safely(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)),
-  /** Troca de seleção (opção, aba de filtro). */
-  selection: () => safely(() => Haptics.selectionAsync()),
-  /** Meta batida, ofensiva +1, acerto na revisão: junto da animação de celebração. */
-  success: () => safely(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
+  /** troca de aba, chip, seleção */
+  select: () =>
+    void (android
+      ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Tick)
+      : Haptics.selectionAsync()
+    ).catch(ignore),
+  /** ação confirmada (salvar palavra) */
+  tap: () =>
+    void (android
+      ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm)
+      : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    ).catch(ignore),
+  /** segurar para traduzir a frase */
+  hold: () =>
+    void (android
+      ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Long_Press)
+      : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    ).catch(ignore),
+  /** vitória: meta batida, acerto na revisão, junto da animação */
+  success: () =>
+    void (android
+      ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm)
+      : Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    ).catch(ignore),
 };

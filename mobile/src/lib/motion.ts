@@ -7,17 +7,19 @@ import {
   type WithSpringConfig,
 } from "react-native-reanimated";
 
+import { motion } from "@/theme";
+
 // Linguagem de movimento do app (docs: pesquisa-motion-mobile.md, tabela 1.5). Tudo em
 // transform/opacity, curto e com "reduzir movimento" do sistema respeitado (ReduceMotion.System:
 // a animação vira instantânea, o significado continua).
 
 export const durations = {
-  press: 100, // encolher ao tocar
+  press: motion.press, // encolher ao tocar (mesmo valor do PressableScale)
   select: 160, // chip, check, destaque de palavra
   enter: 280, // conteúdo entrando na tela
-  progress: 600, // barra/anel enchendo
+  progress: motion.progress, // barra enchendo
   count: 900, // número subindo (XP, palavras)
-  celebrate: 1500, // confete, robô comemorando
+  celebrate: motion.celebrate, // confete, robô comemorando
 } as const;
 
 export const easings = {
@@ -35,7 +37,7 @@ export const springs = {
   // "pop" de recompensa (ícone salvo, chama): um pouco de sobra
   pop: { damping: 9, stiffness: 260, mass: 0.7, reduceMotion: ReduceMotion.System },
   // painel subindo
-  sheet: { damping: 20, stiffness: 220, reduceMotion: ReduceMotion.System },
+  sheet: { ...motion.sheet, reduceMotion: ReduceMotion.System },
 } satisfies Record<string, WithSpringConfig>;
 
 // passo da entrada em cascata e teto (listas longas não esperam o 20º item)
