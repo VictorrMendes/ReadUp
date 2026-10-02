@@ -9,14 +9,14 @@ import { IconButton } from "@/components/icon-button";
 import { ReadingCard } from "@/components/reading-card";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { continueChapter, deleteBook, getBook, type BookDetail } from "@/lib/books";
+import { bookTitle, continueChapter, deleteBook, getBook, type BookDetail } from "@/lib/books";
 import { formatNumber } from "@/lib/format";
 import { colors, spacing } from "@/theme";
 
 function goBack() {
-  // aberto por deep link não há histórico: volta para a Biblioteca
+  // aberto por deep link não há histórico: volta para "Meus livros" na aba Ler
   if (router.canGoBack()) router.back();
-  else router.replace("/library");
+  else router.replace({ pathname: "/read", params: { section: "books" } });
 }
 
 function openChapter(id: number) {
@@ -64,7 +64,7 @@ export default function BookScreen() {
   );
 
   function confirmDelete(current: BookDetail) {
-    Alert.alert("Remover livro", `Remover "${current.title}" e o progresso de leitura dele?`, [
+    Alert.alert("Remover livro", `Remover "${bookTitle(current.title)}" e o progresso de leitura dele?`, [
       { text: "Cancelar", style: "cancel" },
       { text: "Remover", style: "destructive", onPress: () => void remove(current) },
     ]);
@@ -91,7 +91,7 @@ export default function BookScreen() {
           <IconButton
             icon="trash-outline"
             color="textSecondary"
-            accessibilityLabel={`Remover ${book.title}`}
+            accessibilityLabel={`Remover ${bookTitle(book.title)}`}
             onPress={() => confirmDelete(book)}
           />
         )}
@@ -126,8 +126,8 @@ export default function BookScreen() {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View style={styles.header}>
-              <AppText variant="h1" accessibilityRole="header">
-                {book.title}
+              <AppText variant="readingTitle" accessibilityRole="header">
+                {bookTitle(book.title)}
               </AppText>
               <AppText variant="small" color="textSecondary">
                 {formatNumber(book.chapter_count)}{" "}

@@ -12,14 +12,17 @@ class GoalStatus(BaseModel):
     completed: bool
 
 
-def goal_status(target: int | None, words_today: int) -> GoalStatus:
+def goal_status(target: int | None, words_today: int, met_today: bool = False) -> GoalStatus:
+    """met_today: a meta do dia já foi registrada (XP e ofensiva dados). Subir a meta depois disso
+    não "descumpre" o dia: a tela de meta e a ofensiva (/stats) contam a mesma história."""
     if target is None:
         return GoalStatus(target=None, words_today=words_today, remaining=0, completed=False)
+    completed = met_today or words_today >= target
     return GoalStatus(
         target=target,
         words_today=words_today,
-        remaining=max(0, target - words_today),
-        completed=words_today >= target,
+        remaining=0 if completed else target - words_today,
+        completed=completed,
     )
 
 

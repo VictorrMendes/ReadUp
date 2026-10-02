@@ -32,7 +32,16 @@ def test_credit_never_exceeds_word_count() -> None:
 
 @pytest.mark.parametrize(
     ("words_read", "word_count", "expected"),
-    [(0, 300, 0), (150, 300, 50), (299, 300, 99), (300, 300, 100), (2, 3, 66), (0, 0, 100)],
+    [
+        (0, 300, 0),
+        (150, 300, 50),
+        (299, 300, 99),
+        (300, 300, 100),
+        (2, 3, 66),
+        (0, 0, 100),
+        (1, 1000, 1),
+        (645, 80058, 1),
+    ],
 )
 def test_progress_percent(words_read: int, word_count: int, expected: int) -> None:
     assert progress_percent(words_read, word_count) == expected

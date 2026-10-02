@@ -33,6 +33,13 @@ def test_goal_status(target: int | None, words: int, expected: GoalStatus) -> No
     assert goal_status(target, words) == expected
 
 
+def test_goal_met_today_stays_completed_when_target_goes_up() -> None:
+    # bateu 100, subiu para 1000: o dia continua cumprido (como a ofensiva em /stats)
+    assert goal_status(1000, 120, met_today=True) == GoalStatus(
+        target=1000, words_today=120, remaining=0, completed=True
+    )
+
+
 @pytest.fixture
 def user() -> Iterator[tuple[int, dict[str, str]]]:
     with Session(engine) as session:
@@ -146,12 +153,15 @@ def test_lowering_goal_below_todays_words_meets_it_once(
     lowered = put_goal(headers, 100)
     after_lower = client.get("/stats/summary", headers=headers).json()
     put_goal(headers, 60)  # baixar de novo no mesmo dia
-    put_goal(headers, 500)
+    raised = put_goal(headers, 500)
     put_goal(headers, 100)
     after_again = client.get("/stats/summary", headers=headers).json()
 
     assert (read["words_credited"], read["goal_met"], read["xp_gained"]) == (120, False, 12)
     assert lowered.json()["completed"] is True
+    # subir a meta depois de cumprida não contradiz a ofensiva já contada hoje
+    assert (raised.json()["completed"], raised.json()["remaining"]) == (True, 0)
+    assert client.get("/goals", headers=headers).json()["completed"] is True
     assert (after_lower["xp_today"], after_lower["streak_current"]) == (12 + 50, 1)
     assert after_lower["streak_active_today"] is True
     assert (after_again["xp_today"], after_again["streak_current"]) == (12 + 50, 1)

@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 import { ApiError, apiFetch } from "@/lib/api";
 import type { Level } from "@/lib/articles";
+import { cancelReminders } from "@/lib/reminders";
 
 const TOKEN_KEY = "readup.access_token";
 
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     await logout();
+    await cancelReminders();
     setUser(null);
     setUserError(null);
     setToken(null);

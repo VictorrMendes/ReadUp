@@ -16,12 +16,37 @@ export type ArticleSummary = {
   progress: number;
   completed: boolean;
   book_id: number | null; // capítulo de um PDF do usuário; null = texto do feed
+  book_title: string | null; // nome do livro do capítulo
 };
 
 // ponytail: sem paginação; limit 50 cobre o catálogo atual
-export function listArticles(token: string, level?: Level): Promise<ArticleSummary[]> {
-  const query = level ? `?limit=50&level=${level}` : "?limit=50";
-  return apiFetch<ArticleSummary[]>(`/articles${query}`, { token });
+export function listArticles(
+  token: string,
+  level?: Level,
+  category?: string,
+): Promise<ArticleSummary[]> {
+  const params = new URLSearchParams({ limit: "50" });
+  if (level) params.set("level", level);
+  if (category) params.set("category", category);
+  return apiFetch<ArticleSummary[]>(`/articles?${params}`, { token });
+}
+
+/** Níveis acima de `level`, do mais próximo ao mais distante. */
+export function levelsAbove(level: Level): Level[] {
+  return LEVELS.slice(LEVELS.indexOf(level) + 1);
+}
+
+/** Primeiro nível acima com textos (ex.: notícias só existem a partir do B1). null se nenhum. */
+export async function nearestLevelAbove(
+  token: string,
+  level: Level,
+  category?: string,
+): Promise<{ level: Level; articles: ArticleSummary[] } | null> {
+  for (const next of levelsAbove(level)) {
+    const articles = await listArticles(token, next, category);
+    if (articles.length > 0) return { level: next, articles };
+  }
+  return null;
 }
 
 export type ArticleDetail = ArticleSummary & {

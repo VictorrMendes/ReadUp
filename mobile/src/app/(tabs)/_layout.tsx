@@ -1,16 +1,16 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import type Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import type { ComponentProps } from "react";
 import { Text } from "react-native";
 
+import { TabIcon } from "@/components/tab-icon";
 import { colors, compactFontScale, fontFamily } from "@/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 const TABS: { name: string; title: string; icon: IconName; iconOutline: IconName }[] = [
   { name: "index", title: "Início", icon: "home", iconOutline: "home-outline" },
-  { name: "explore", title: "Explorar", icon: "compass", iconOutline: "compass-outline" },
-  { name: "library", title: "Biblioteca", icon: "library", iconOutline: "library-outline" },
+  { name: "read", title: "Ler", icon: "book", iconOutline: "book-outline" },
   { name: "vocabulary", title: "Vocabulário", icon: "language", iconOutline: "language-outline" },
   { name: "profile", title: "Perfil", icon: "person", iconOutline: "person-outline" },
 ];
@@ -51,7 +51,12 @@ export default function TabsLayout() {
             // Início tem o título grande dentro da própria tela
             headerShown: tab.name !== "index",
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? tab.icon : tab.iconOutline} color={color} size={size} />
+              <TabIcon
+                name={focused ? tab.icon : tab.iconOutline}
+                color={color}
+                size={size}
+                focused={focused}
+              />
             ),
           }}
         />

@@ -10,6 +10,7 @@ from app.articles.models import Article
 from app.articles.text import estimated_minutes
 from app.auth.security import get_current_user
 from app.books.access import visible_to
+from app.books.models import Book
 from app.db import get_session
 from app.news.attribution import attribution
 from app.reading.models import ReadingProgress
@@ -33,6 +34,7 @@ class ArticleSummary(BaseModel):
     source: str
     published_at: datetime | None
     book_id: int | None  # capítulo de livro do usuário; null = texto do feed
+    book_title: str | None = None  # nome do livro do capítulo (o capítulo sozinho não diz qual é)
     # progresso do usuário logado (0/false se nunca leu)
     progress: int = 0
     completed: bool = False
@@ -55,11 +57,16 @@ class ArticleDetail(ArticleSummary):
         return attribution(self.source, self.published_at)
 
 
-def _with_progress(user: User) -> Select[Article, int, datetime | None]:
-    """Artigo + progresso do usuário numa query só (LEFT JOIN: progress None se nunca leu)."""
-    return select(Article, ReadingProgress.progress, ReadingProgress.completed_at).outerjoin(
-        ReadingProgress,
-        (ReadingProgress.article_id == Article.id) & (ReadingProgress.user_id == user.id),
+def _with_progress(user: User) -> Select[Article, int, datetime | None, str | None]:
+    """Artigo + progresso do usuário + nome do livro (capítulos) numa query só.
+    LEFT JOINs: progress None se nunca leu; book_title None para textos do feed."""
+    return (
+        select(Article, ReadingProgress.progress, ReadingProgress.completed_at, Book.title)
+        .outerjoin(
+            ReadingProgress,
+            (ReadingProgress.article_id == Article.id) & (ReadingProgress.user_id == user.id),
+        )
+        .outerjoin(Book, Book.id == Article.book_id)
     )
 
 
@@ -91,9 +98,13 @@ def list_articles(
         stmt = stmt.where(Article.category == category)
     return [
         ArticleSummary.model_validate(article).model_copy(
-            update={"progress": progress or 0, "completed": completed_at is not None}
+            update={
+                "progress": progress or 0,
+                "completed": completed_at is not None,
+                "book_title": book_title,
+            }
         )
-        for article, progress, completed_at in session.execute(stmt)
+        for article, progress, completed_at, book_title in session.execute(stmt)
     ]
 
 
@@ -106,7 +117,7 @@ def get_article(
     ).first()
     if row is None:  # inexistente ou capítulo de outro usuário: mesma resposta
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Texto não encontrado")
-    article, progress, completed_at = row
+    article, progress, completed_at, book_title = row
     next_article_id = None
     if article.book_id is not None:
         next_article_id = session.scalar(
@@ -120,5 +131,6 @@ def get_article(
             "progress": progress or 0,
             "completed": completed_at is not None,
             "next_article_id": next_article_id,
+            "book_title": book_title,
         }
     )

@@ -1,8 +1,19 @@
+import { useEffect } from "react";
 import { Image, StyleSheet, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { WeekStrip } from "@/components/week-strip";
 import { formatDays } from "@/lib/format";
+import { easings } from "@/lib/motion";
 import type { DailyStat } from "@/lib/stats";
 import { colors, radius, spacing } from "@/theme";
 
@@ -23,6 +34,26 @@ export function streakCaption(current: number, longest: number, activeToday: boo
 // (4.88:1 sobre streak50); o número em textPrimary.
 export function StreakCard({ current, longest, activeToday, week }: Props) {
   const caption = streakCaption(current, longest, activeToday);
+  const reduceMotion = useReducedMotion();
+  const flame = useSharedValue(1);
+  const flameStyle = useAnimatedStyle(() => ({ transform: [{ scale: flame.get() }] }));
+
+  // ofensiva mantida hoje: a chama pulsa duas vezes ao aparecer (600 ms cada), depois fica quieta
+  useEffect(() => {
+    if (!activeToday || reduceMotion) return;
+    flame.set(
+      withDelay(
+        300,
+        withRepeat(
+          withSequence(
+            withTiming(1.15, { duration: 300, easing: easings.standard }),
+            withTiming(1, { duration: 300, easing: easings.standard }),
+          ),
+          2,
+        ),
+      ),
+    );
+  }, [activeToday, reduceMotion, flame]);
 
   return (
     <View style={styles.card}>
@@ -31,16 +62,18 @@ export function StreakCard({ current, longest, activeToday, week }: Props) {
         accessible
         accessibilityLabel={`Ofensiva de ${formatDays(current)}. ${caption}`}
       >
-        <Image
-          source={
-            activeToday
-              ? require("../../assets/images/streak.png")
-              : require("../../assets/images/streak-inactive.png")
-          }
-          style={styles.image}
-          accessibilityIgnoresInvertColors
-          accessible={false}
-        />
+        <Animated.View style={flameStyle}>
+          <Image
+            source={
+              activeToday
+                ? require("../../assets/images/streak.png")
+                : require("../../assets/images/streak-inactive.png")
+            }
+            style={styles.image}
+            accessibilityIgnoresInvertColors
+            accessible={false}
+          />
+        </Animated.View>
         <View style={styles.text}>
           <AppText variant="h2">{formatDays(current)}</AppText>
           <AppText variant="small" color="streak700">

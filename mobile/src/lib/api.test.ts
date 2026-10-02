@@ -1,4 +1,4 @@
-import { ApiError, apiFetch } from "./api";
+import { ApiError, TIMEOUT_MESSAGE, TIMEOUT_MS, apiFetch } from "./api";
 
 process.env.EXPO_PUBLIC_API_URL = "http://api.test";
 
@@ -55,4 +55,28 @@ test("FormData vai como está, sem Content-Type JSON (o fetch põe o boundary)",
   expect(init.body).toBe(form);
   expect(init.headers["Content-Type"]).toBeUndefined();
   expect(init.headers.Authorization).toBe("Bearer abc");
+});
+
+test("servidor que não responde: desiste no tempo limite com ApiError status 0", async () => {
+  jest.useFakeTimers();
+  try {
+    fetchMock.mockImplementationOnce(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        }),
+    );
+    const pending = apiFetch("/goals").catch((e: unknown) => e);
+    jest.advanceTimersByTime(TIMEOUT_MS);
+    const error = await pending;
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 0, detail: TIMEOUT_MESSAGE });
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("erro de rede antes do tempo limite continua sendo erro de rede", async () => {
+  fetchMock.mockRejectedValueOnce(new TypeError("Network request failed"));
+  await expect(apiFetch("/goals")).rejects.toBeInstanceOf(TypeError);
 });

@@ -2,6 +2,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { BookCard } from "@/components/book-card";
@@ -11,13 +12,15 @@ import { Skeleton } from "@/components/skeleton";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { listBooks, uploadBook, type Book } from "@/lib/books";
+import { listEnter } from "@/lib/motion";
 import { colors, spacing } from "@/theme";
 
 function openBook(id: number) {
   router.push({ pathname: "/book/[id]", params: { id: String(id) } });
 }
 
-export default function LibraryScreen() {
+/** Livros (PDFs) do usuário com importação: parte "Meus livros" da aba Ler. */
+export function LibraryList() {
   const { token, signOut } = useAuth();
   const [books, setBooks] = useState<Book[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +119,11 @@ export default function LibraryScreen() {
     <FlatList
       data={books}
       keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => <BookCard book={item} onPress={() => openBook(item.id)} />}
+      renderItem={({ item, index }) => (
+        <Animated.View entering={listEnter(index)}>
+          <BookCard book={item} onPress={() => openBook(item.id)} />
+        </Animated.View>
+      )}
       style={styles.container}
       contentContainerStyle={styles.list}
       refreshControl={

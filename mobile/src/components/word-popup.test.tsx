@@ -1,19 +1,32 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import * as Haptics from "expo-haptics";
+import * as Speech from "expo-speech";
 
-import { deleteWord, lookupWord, saveWord } from "@/lib/vocabulary";
+import { ApiError } from "@/lib/api";
+import {
+  deleteWord,
+  lookupWord,
+  saveWord,
+  splitAround,
+  translateSentence,
+} from "@/lib/vocabulary";
 
 import { WordPopup } from "./word-popup";
+
+jest.mock("expo-speech", () => ({ speak: jest.fn(), stop: jest.fn() }));
 
 jest.mock("@/lib/vocabulary", () => ({
   ...jest.requireActual("@/lib/vocabulary"),
   lookupWord: jest.fn(),
   saveWord: jest.fn(),
   deleteWord: jest.fn(),
+  translateSentence: jest.fn(),
 }));
 
 const lookup = jest.mocked(lookupWord);
 const save = jest.mocked(saveWord);
 const remove = jest.mocked(deleteWord);
+const translate = jest.mocked(translateSentence);
 
 const SELECTION = { word: "house", sentence: "The house is big." };
 const SAVED = {
@@ -45,7 +58,8 @@ test("carregando: palavra, frase e skeleton da tradução; salvar ainda desabili
   lookup.mockReturnValue(new Promise(() => {}));
   await renderPopup();
 
-  expect(screen.getByText("house")).toBeOnTheScreen();
+  // a palavra aparece no título e destacada dentro da frase
+  expect(screen.getByRole("header", { name: "house" })).toBeOnTheScreen();
   expect(screen.getByText("The house is big.")).toBeOnTheScreen();
   expect(screen.getByLabelText("Carregando tradução")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Salvar palavra" })).toBeDisabled();
@@ -70,6 +84,8 @@ test("tradução indisponível ainda permite salvar, com a frase e o texto de or
   await fireEvent.press(screen.getByRole("button", { name: "Salvar palavra" }));
 
   expect(await screen.findByText("Palavra salva")).toBeOnTheScreen();
+  // salvar é recompensa: toque leve junto com o ícone
+  expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
   expect(save).toHaveBeenCalledWith("token", {
     word: "house",
     article_id: 3,
@@ -100,4 +116,64 @@ test("erro ao salvar mostra aviso e mantém o botão", async () => {
 
   expect(await screen.findByText("Não foi possível salvar. Tente novamente.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Salvar palavra" })).toBeEnabled();
+});
+
+test("ouvir a pronúncia fala a palavra em inglês; ouvir a frase fala a frase", async () => {
+  lookup.mockResolvedValue({ word: "house", translation: "casa", saved: false, saved_id: null });
+  await renderPopup();
+
+  await fireEvent.press(screen.getByRole("button", { name: "Ouvir a pronúncia de house" }));
+  expect(Speech.speak).toHaveBeenLastCalledWith("house", { language: "en-US", rate: 0.9 });
+
+  await fireEvent.press(screen.getByRole("button", { name: "Ouvir a frase" }));
+  expect(Speech.speak).toHaveBeenLastCalledWith("The house is big.", {
+    language: "en-US",
+    rate: 0.9,
+  });
+});
+
+test("destaca a palavra inteira na frase, sem diferenciar maiúsculas", () => {
+  expect(splitAround("The House is big.", "house")).toEqual({
+    before: "The ",
+    match: "House",
+    after: " is big.",
+  });
+  // "household" não conta como "house"
+  expect(splitAround("A household. A house.", "house")).toEqual({
+    before: "A household. A ",
+    match: "house",
+    after: ".",
+  });
+  expect(splitAround("Nothing here.", "house")).toBeNull();
+});
+
+test("traduzir a frase da palavra sob demanda", async () => {
+  lookup.mockResolvedValue({ word: "house", translation: "casa", saved: false, saved_id: null });
+  translate.mockResolvedValue({ text: SELECTION.sentence, translation: "A casa é grande." });
+  await renderPopup();
+
+  await fireEvent.press(await screen.findByRole("button", { name: "Traduzir a frase" }));
+
+  expect(await screen.findByText("A casa é grande.")).toBeOnTheScreen();
+  expect(translate).toHaveBeenCalledWith("token", 3, "The house is big.");
+});
+
+test("frase escolhida (dedo segurado) já abre traduzida; limite do dia vira aviso", async () => {
+  translate.mockRejectedValue(new ApiError(429, "limite"));
+  await render(
+    <WordPopup
+      selection={{ word: null, sentence: "The house is big." }}
+      token="token"
+      articleId={3}
+      onClose={jest.fn()}
+      onUnauthorized={jest.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("header", { name: "Frase" })).toBeOnTheScreen();
+  expect(
+    await screen.findByText("Você atingiu o limite de traduções de frase de hoje. Volte amanhã!"),
+  ).toBeOnTheScreen();
+  expect(lookup).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Salvar palavra" })).not.toBeOnTheScreen();
 });

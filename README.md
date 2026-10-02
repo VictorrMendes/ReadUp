@@ -20,6 +20,8 @@ readup/
 - **Ofensiva (streak)**: contagem de dias consecutivos atingindo a meta de leitura e recorde histórico.
 - **Conquistas (achievements)**: medalhas desbloqueadas automaticamente por marcos de leitura, ofensiva e vocabulário.
 - **Vocabulário com tradução**: consulta instantânea de palavras via MyMemory com cache global e lista pessoal de palavras salvas.
+- **Revisão espaçada**: palavras salvas voltam em cartões (caixas de Leitner: 1, 3, 7, 14, 30 e 90 dias), até 20 respostas por dia e +2 XP por acerto (teto de 20 XP/dia).
+- **Lembrete diário**: notificação local (manhã, tarde ou noite) escolhida no onboarding ou no Perfil; o lembrete do dia é cancelado quando a meta já foi cumprida.
 - **PDFs privados**: envio de livros e documentos em PDF pelo usuário, processados em capítulos privados.
 - **Notícias**: agregação periódica de artigos de fontes em inglês simples (VOA Learning English e Wikinews — ambas as fontes estão congeladas/modo arquivo).
 - **Estatísticas no Perfil**: visão geral de palavras lidas, ofensiva, tempo de leitura e vocabulário acumulado.

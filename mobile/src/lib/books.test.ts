@@ -1,5 +1,5 @@
 import { ApiError } from "./api";
-import { continueChapter, uploadBook, type Chapter } from "./books";
+import { bookTitle, continueChapter, uploadBook, type Chapter } from "./books";
 
 // XMLHttpRequest simulado: guarda o que foi enviado e responde quando o teste manda
 class FakeXhr {
@@ -135,4 +135,11 @@ test("todos concluídos volta ao primeiro", () => {
 
 test("sem capítulos não há o que abrir", () => {
   expect(continueChapter([])).toBeUndefined();
+});
+
+test("bookTitle limpa nomes de arquivo antigos", () => {
+  expect(bookTitle("The%20Last%20Wish_%20Andrzej%20Sapkowski")).toBe("The Last Wish Andrzej Sapkowski");
+  expect(bookTitle("harry-potter-and-the-philosophers-stone")).toBe("harry potter and the philosophers stone");
+  expect(bookTitle("Spider-Man and Me")).toBe("Spider-Man and Me");
+  expect(bookTitle("100%")).toBe("100%");
 });

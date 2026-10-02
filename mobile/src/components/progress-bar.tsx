@@ -1,11 +1,32 @@
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
 
+import { durations } from "@/lib/motion";
 import { colors, radius } from "@/theme";
 
-type Props = { value: number; tone?: "primary" | "success"; size?: "default" | "thin" | "large" };
+type Props = {
+  value: number;
+  tone?: "primary" | "success";
+  size?: "default" | "thin" | "large";
+  /** enche a partir do zero ao aparecer (tela de conclusão, meta) */
+  fromZero?: boolean;
+};
 
-export function ProgressBar({ value, tone = "primary", size = "default" }: Props) {
+// enche desacelerando (Material "emphasized decelerate")
+const FILL_EASING = cubicBezier(0.05, 0.7, 0.1, 1);
+
+/** Barra de progresso; mudanças de valor deslizam em ~600 ms (instantâneo com "reduzir movimento"). */
+export function ProgressBar({ value, tone = "primary", size = "default", fromZero = false }: Props) {
   const percent = Math.round(Math.min(1, Math.max(0, value)) * 100);
+  const reduceMotion = useReducedMotion();
+  const [shown, setShown] = useState(fromZero && !reduceMotion ? 0 : percent);
+
+  useEffect(() => {
+    // próximo quadro: a barra já existe com o valor antigo e a transição tem de onde partir
+    const frame = requestAnimationFrame(() => setShown(percent));
+    return () => cancelAnimationFrame(frame);
+  }, [percent]);
 
   return (
     <View
@@ -14,13 +35,16 @@ export function ProgressBar({ value, tone = "primary", size = "default" }: Props
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: percent }}
     >
-      <View
+      <Animated.View
         style={[
           styles.fill,
           size !== "default" && styles[size],
           {
-            width: `${percent}%`,
+            width: `${shown}%`,
             backgroundColor: tone === "success" ? colors.success500 : colors.primary500,
+            transitionProperty: "width",
+            transitionDuration: reduceMotion ? 0 : durations.progress,
+            transitionTimingFunction: FILL_EASING,
           },
         ]}
       />
