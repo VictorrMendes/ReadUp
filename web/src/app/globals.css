@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/* Tokens do Design System do ReadUp (mesmos valores de mobile/src/theme.ts — paleta Índigo tinta).
+   Papéis: índigo = marca e ação; verde = meta cumprida; laranja = só ofensiva; dourado = recompensa. */
+@theme {
+  --color-primary-50: #f2f2fa;
+  --color-primary-100: #e8e8f6;
+  --color-primary-200: #cfcfec;
+  --color-primary-500: #3b3a98;
+  --color-primary-600: #2f2e80;
+  --color-primary-700: #2c2b78;
+  --color-success-100: #dcfce7;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-streak: #f97316;
+  --color-streak-50: #fff7ed;
+  --color-streak-100: #ffedd5;
+  --color-streak-700: #c2410c;
+  --color-gold-50: #fffbeb;
+  --color-gold-100: #fef3c7;
+  --color-gold-200: #fde68a;
+  --color-gold-600: #d97706;
+  --color-gold-700: #b45309;
+  --color-muted: #f3f0ea;
+  --color-error: #ef4444;
+  --color-error-text: #dc2626;
+  --color-paper: #faf8f4;
+  --color-surface: #ffffff;
+  --color-ink: #1c1917;
+  --color-ink-soft: #6b6560;
+  --color-line: #e7e2da;
+  --color-line-strong: #6b6560;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-literata), ui-serif, Georgia, serif;
+
+  --radius-card: 20px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* foco visível só para teclado */
+:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(48px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes sheet-left {
+  from { transform: translateX(48px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes rise {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Linguagem de movimento (igual ao mobile, docs: pesquisa-motion-mobile.md): entra desacelerando,
+   sai acelerando. Tudo transform/opacity; "reduzir movimento" acima zera as durações. */
+:root {
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+/* brilho do skeleton atravessando da esquerda para a direita */
+@keyframes shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+/* cartão da revisão virando: de lado na metade (a face troca), de frente no fim */
+@keyframes flip {
+  0% { transform: perspective(800px) rotateY(0); animation-timing-function: var(--ease-exit); }
+  50% { transform: perspective(800px) rotateY(90deg); animation-timing-function: var(--ease-enter); }
+  100% { transform: perspective(800px) rotateY(0); }
+}
+/* chama da ofensiva: dois pulsos curtos */
+@keyframes flame-pulse {
+  0%, 50%, 100% { transform: scale(1); }
+  25%, 75% { transform: scale(1.15); }
+}
+/* confete: cada peça recebe --x (desvio) e --r (giro) no style */
+@keyframes confetti-fall {
+  0% { transform: translate(0, -24px) rotate(0); opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translate(var(--x), 75vh) rotate(var(--r)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti { display: none; }
+}
+
+/* Tema escuro do leitor: redefine os tokens dentro da tela de leitura (painéis inclusive), sem
+   mudar o resto do app. Contraste sobre #232229: ink 12.5:1, ink-soft 6.3:1, índigo claro 8.4:1;
+   botão índigo #6664dc com texto branco 4.75:1. */
+.reader-dark {
+  color-scheme: dark;
+  --color-surface: #232229;
+  --color-paper: #2c2b33;
+  --color-muted: #2c2b33;
+  --color-ink: #e7e5e2;
+  --color-ink-soft: #a8a29e;
+  --color-line: #3a3842;
+  --color-line-strong: #a8a29e;
+  --color-primary-50: #2c2b4a;
+  --color-primary-100: #3a3970;
+  --color-primary-200: #4a4990;
+  --color-primary-500: #6664dc;
+  --color-primary-600: #5452c8;
+  --color-primary-700: #b9b8f0;
+}
+.reader-dark .text-primary-600,
+.reader-dark .text-primary-500 {
+  color: #b9b8f0;
+}
+.reader-dark :focus-visible {
+  outline-color: #b9b8f0;
+}
