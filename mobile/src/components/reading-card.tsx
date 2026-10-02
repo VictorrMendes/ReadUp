@@ -7,6 +7,7 @@ import { Badge } from "@/components/badge";
 import { Card } from "@/components/card";
 import { ProgressBar } from "@/components/progress-bar";
 import type { ArticleSummary } from "@/lib/articles";
+import { bookTitle } from "@/lib/books";
 import { formatNumber } from "@/lib/format";
 import { colors, radius, ripple, spacing } from "@/theme";
 
@@ -15,7 +16,7 @@ type Props = {
     ArticleSummary,
     "title" | "difficulty" | "category" | "word_count" | "estimated_minutes" | "progress" | "completed"
   > &
-    Partial<Pick<ArticleSummary, "source">>;
+    Partial<Pick<ArticleSummary, "source" | "book_title">>;
   onPress?: () => void;
 };
 
@@ -24,12 +25,14 @@ const NEWS_CATEGORY = "Notícias";
 
 export function ReadingCard({ article, onPress }: Props) {
   const inProgress = article.progress > 0 && !article.completed;
+  // capítulo: o nome do livro diz mais que "Livro"
+  const kind = article.book_title ? bookTitle(article.book_title) : article.category;
   const source = article.category === NEWS_CATEGORY ? article.source : undefined;
   // leitor de tela: um rótulo só, em vez de ler badge por badge
   const label = [
     article.title,
     article.difficulty && `nível ${article.difficulty}`,
-    article.category,
+    kind,
     source,
     `${article.estimated_minutes} ${article.estimated_minutes === 1 ? "minuto" : "minutos"}`,
     article.completed ? "concluído" : inProgress && `${article.progress}% lido`,
@@ -41,7 +44,7 @@ export function ReadingCard({ article, onPress }: Props) {
     <Card style={styles.card}>
       <View style={styles.badges}>
         {article.difficulty && <Badge label={article.difficulty} tone="primary" />}
-        <Badge label={article.category} />
+        <Badge label={kind} />
       </View>
       {article.completed && (
         <Ionicons
@@ -51,7 +54,7 @@ export function ReadingCard({ article, onPress }: Props) {
           style={styles.check}
         />
       )}
-      <AppText variant="h3" numberOfLines={2}>
+      <AppText variant="cardTitle" numberOfLines={2}>
         {article.title}
       </AppText>
       <View style={styles.meta}>
@@ -91,7 +94,8 @@ export function ReadingCard({ article, onPress }: Props) {
       accessibilityRole="button"
       accessibilityLabel={label}
       android_ripple={ripple}
-      style={({ pressed }) => [styles.pressable]}
+      scaleTo={0.98}
+      style={styles.pressable}
     >
       {card}
     </PressableScale>

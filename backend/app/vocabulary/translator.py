@@ -17,7 +17,7 @@ _EDGES = " \t\n\r.,;:!?\"'“”‘’«»"
 # compartilhada por todos os usuários e sem limite por usuário. O cache em word_translations
 # faz cada palavra sair uma vez só; se a cota apertar, limitar lookups por usuário ou trocar
 # por um dicionário local.
-def translate(word: str) -> str | None:
+def translate(word: str, max_length: int = MAX_TRANSLATION_LENGTH) -> str | None:
     """Tradução en → pt-BR de uma palavra já normalizada. Qualquer falha → None, nunca exceção.
 
     Só a palavra sai para o serviço: nada do usuário nem do texto que ele está lendo.
@@ -42,7 +42,7 @@ def translate(word: str) -> str | None:
     if not isinstance(translation, str):
         return None
     translation = translation.strip(_EDGES)
-    if not translation or len(translation) > MAX_TRANSLATION_LENGTH:
+    if not translation or len(translation) > max_length:
         return None
     if translation.upper().startswith("MYMEMORY WARNING"):
         return None

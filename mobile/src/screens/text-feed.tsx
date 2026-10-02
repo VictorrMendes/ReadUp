@@ -7,6 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
@@ -15,8 +16,16 @@ import { PressableScale } from "@/components/pressable-scale";
 import { ReadingCard } from "@/components/reading-card";
 import { Skeleton } from "@/components/skeleton";
 import { ApiError } from "@/lib/api";
-import { LEVELS, listArticles, type ArticleSummary, type Level } from "@/lib/articles";
+import {
+  LEVELS,
+  listArticles,
+  nearestLevelAbove,
+  type ArticleSummary,
+  type Level,
+} from "@/lib/articles";
 import { useAuth } from "@/lib/auth";
+import { haptic } from "@/lib/haptics";
+import { listEnter } from "@/lib/motion";
 import {
   colors,
   compactFontScale,
@@ -29,10 +38,20 @@ import {
 
 const FILTERS: (Level | null)[] = [null, ...LEVELS];
 
-export default function ExploreScreen() {
+type Props = {
+  // filtro inicial de nível (o da pessoa); "Todos" continua disponível nos chips
+  initialLevel: Level | null;
+  // só uma categoria (ex.: "Notícias"); sem ela, todos os textos públicos
+  category?: string;
+};
+
+/** Lista de textos do feed com filtro de nível: parte da aba Ler. */
+export function TextFeed({ initialLevel, category }: Props) {
   const { token, signOut } = useAuth();
-  const [level, setLevel] = useState<Level | null>(null);
+  const [level, setLevel] = useState<Level | null>(initialLevel);
   const [articles, setArticles] = useState<ArticleSummary[] | null>(null);
+  // nível sem nada (ex.: notícias no A1/A2): mostra o nível acima mais próximo, com aviso
+  const [fallbackLevel, setFallbackLevel] = useState<Level | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -41,11 +60,17 @@ export default function ExploreScreen() {
     if (!token) return;
     // "active" descarta respostas de um filtro antigo que cheguem depois do atual
     let active = true;
-    listArticles(token, level ?? undefined)
-      .then((result) => {
+    listArticles(token, level ?? undefined, category)
+      .then(async (result) => {
+        if (!active) return;
+        const above =
+          result.length === 0 && level
+            ? await nearestLevelAbove(token, level, category).catch(() => null)
+            : null;
         if (!active) return;
         setError(null);
-        setArticles(result);
+        setFallbackLevel(above?.level ?? null);
+        setArticles(above?.articles ?? result);
       })
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) void signOut();
@@ -58,7 +83,7 @@ export default function ExploreScreen() {
     return () => {
       active = false;
     };
-  }, [token, level, reloadKey, signOut]);
+  }, [token, level, category, reloadKey, signOut]);
 
   // ao voltar do leitor, recarrega para mostrar o progresso atualizado (a 1ª vez já carrega acima)
   const focusedBefore = useRef(false);
@@ -71,6 +96,7 @@ export default function ExploreScreen() {
 
   function selectLevel(next: Level | null) {
     setLevel(next);
+    setFallbackLevel(null);
     setArticles(null);
     setError(null);
   }
@@ -99,7 +125,10 @@ export default function ExploreScreen() {
           return (
             <PressableScale
               key={option ?? "all"}
-              onPress={() => selectLevel(option)}
+              onPress={() => {
+                if (!selected) haptic.select();
+                selectLevel(option);
+              }}
               accessibilityRole="button"
               accessibilityState={{ selected }}
               android_ripple={ripple}
@@ -139,15 +168,30 @@ export default function ExploreScreen() {
         <FlatList
           data={articles}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => (
-            <ReadingCard
-              article={item}
-              onPress={() =>
-                router.push({ pathname: "/article/[id]", params: { id: String(item.id) } })
-              }
-            />
+          renderItem={({ item, index }) => (
+            <Animated.View entering={listEnter(index)}>
+              <ReadingCard
+                article={item}
+                onPress={() =>
+                  router.push({ pathname: "/article/[id]", params: { id: String(item.id) } })
+                }
+              />
+          </Animated.View>
           )}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            fallbackLevel ? (
+              <View style={styles.notice} accessibilityRole="text">
+                <AppText variant="small" color="primary700">
+                  {category
+                    ? `Ainda não há ${category.toLowerCase()} no nível ${level}.`
+                    : `Ainda não há textos no nível ${level}.`}{" "}
+                  Estas são do nível {fallbackLevel}, um pouco mais difíceis: toque nas palavras
+                  para traduzir.
+                </AppText>
+              </View>
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -160,7 +204,11 @@ export default function ExploreScreen() {
             <EmptyState
               icon="compass-outline"
               illustration={require("@/assets/images/empty-explore.png")}
-              title="Nenhum texto para este nível ainda"
+              title={
+                category
+                  ? `Nada em ${category} para este nível`
+                  : "Nenhum texto para este nível ainda"
+              }
               message="Escolha outro nível ou volte mais tarde."
               action={
                 level ? { label: "Ver todos os níveis", onPress: () => selectLevel(null) } : undefined
@@ -200,5 +248,12 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   errorText: { textAlign: "center" },
+  notice: {
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary100,
+    backgroundColor: colors.primary50,
+  },
   list: { flexGrow: 1, gap: spacing.md, padding: spacing.lg },
 });

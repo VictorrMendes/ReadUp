@@ -13,11 +13,18 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Props = Omit<PressableProps, "style"> & {
   style?: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>);
+  scaleTo?: number; // quanto encolhe ao tocar (cards grandes encolhem menos)
 };
 
 // Pressable que afunda ao tocar (~90 ms) e volta com mola. A cor de pressed continua com quem usa
 // (style em função); com "reduzir movimento" o Reanimated pula a escala e sobra a cor.
-export function PressableScale({ style, onPressIn, onPressOut, ...props }: Props) {
+export function PressableScale({
+  style,
+  scaleTo = motion.pressScale,
+  onPressIn,
+  onPressOut,
+  ...props
+}: Props) {
   const [pressed, setPressed] = useState(false);
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
@@ -27,7 +34,7 @@ export function PressableScale({ style, onPressIn, onPressOut, ...props }: Props
       {...props}
       onPressIn={(e) => {
         setPressed(true);
-        scale.set(withTiming(motion.pressScale, { duration: motion.press }));
+        scale.set(withTiming(scaleTo, { duration: motion.press }));
         onPressIn?.(e);
       }}
       onPressOut={(e) => {

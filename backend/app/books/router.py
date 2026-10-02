@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from pydantic import BaseModel, computed_field
@@ -104,10 +105,16 @@ class BookDetail(BookOut):
 
 def _title(file_name: str | None) -> str:
     """Nome original sem a extensão, só como texto: nunca entra em caminho."""
-    name = " ".join((file_name or "").split())
+    # navegadores e apps às vezes mandam o nome codificado ("The%20Last%20Wish_%20...")
+    name = unquote(file_name or "")
     if name.lower().endswith(".pdf"):
         name = name[:-4]
-    return name.strip()[:MAX_TITLE_LENGTH] or "Livro sem título"
+    name = name.replace("_", " ")
+    # "harry-potter-and-the-stone": sem espaços, o hífen era separador de palavras
+    if " " not in name.strip() and name.count("-") >= 2:
+        name = name.replace("-", " ")
+    name = " ".join(name.split())
+    return name[:MAX_TITLE_LENGTH] or "Livro sem título"
 
 
 def _read_limited(file: UploadFile) -> bytes:

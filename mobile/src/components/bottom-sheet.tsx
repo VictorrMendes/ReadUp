@@ -12,7 +12,8 @@ import Animated, {
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 
-import { colors, motion, radius, spacing } from "@/theme";
+import { springs } from "@/lib/motion";
+import { colors, radius, spacing } from "@/theme";
 
 type Props = { visible: boolean; onClose: () => void; children: ReactNode };
 
@@ -35,7 +36,7 @@ export function BottomSheet({ visible, onClose, children }: Props) {
   useEffect(() => {
     if (visible) {
       drag.set(0);
-      entrance.set(withSpring(1, motion.sheet));
+      entrance.set(withSpring(1, springs.sheet));
     } else {
       const exit = { duration: EXIT_MS, easing: Easing.in(Easing.cubic) };
       entrance.set(
@@ -53,7 +54,7 @@ export function BottomSheet({ visible, onClose, children }: Props) {
     })
     .onEnd((e) => {
       if (e.translationY > CLOSE_DRAG || e.velocityY > CLOSE_VELOCITY) scheduleOnRN(onClose);
-      else drag.set(withSpring(0, { ...motion.sheet, velocity: e.velocityY }));
+      else drag.set(withSpring(0, { ...springs.sheet, velocity: e.velocityY }));
     });
 
   const backdropStyle = useAnimatedStyle(() => ({

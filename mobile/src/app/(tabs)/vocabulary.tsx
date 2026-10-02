@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { Alert, RefreshControl, StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { Button } from "@/components/button";
@@ -10,12 +11,16 @@ import { IconButton } from "@/components/icon-button";
 import { Skeleton } from "@/components/skeleton";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { deleteWord, listWords, type SavedWord } from "@/lib/vocabulary";
+import { formatNumber } from "@/lib/format";
+import { listEnter, listExit, listLayout } from "@/lib/motion";
+import { deleteWord, getReviewQueue, listWords, type SavedWord } from "@/lib/vocabulary";
 import { colors, spacing } from "@/theme";
 
 export default function VocabularyScreen() {
   const { token, signOut } = useAuth();
   const [words, setWords] = useState<SavedWord[] | null>(null);
+  // palavras para revisar agora (null = indisponível: o cartão de revisão some)
+  const [toReview, setToReview] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -25,11 +30,15 @@ export default function VocabularyScreen() {
     useCallback(() => {
       if (!token) return;
       let active = true;
-      listWords(token)
-        .then((result) => {
+      Promise.all([
+        listWords(token),
+        getReviewQueue(token).catch(() => null), // falha só esconde o cartão de revisão
+      ])
+        .then(([result, queue]) => {
           if (!active) return;
           setError(null);
           setWords(result);
+          setToReview(queue ? queue.cards.length : null);
         })
         .catch((e: unknown) => {
           if (e instanceof ApiError && e.status === 401) void signOut();
@@ -96,36 +105,40 @@ export default function VocabularyScreen() {
     );
   }
   return (
-    <FlatList
+    <Animated.FlatList
       data={words}
       keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => (
-        <Card style={styles.card}>
-          <View style={styles.text}>
-            <AppText variant="h3">{item.word}</AppText>
-            {item.translation ? (
-              <AppText>{item.translation}</AppText>
-            ) : (
-              <AppText color="textSecondary">Sem tradução</AppText>
-            )}
-            {item.context && (
-              <AppText variant="small" color="textSecondary" numberOfLines={2}>
-                {item.context}
-              </AppText>
-            )}
-            {item.article_title && (
-              <AppText variant="caption" color="textSecondary" numberOfLines={1}>
-                {item.article_title}
-              </AppText>
-            )}
-          </View>
-          <IconButton
-            icon="trash-outline"
-            color="textSecondary"
-            accessibilityLabel={`Remover ${item.word}`}
-            onPress={() => confirmRemove(item)}
-          />
-        </Card>
+      // palavra removida: some e a lista fecha o buraco deslizando
+      itemLayoutAnimation={listLayout}
+      renderItem={({ item, index }) => (
+        <Animated.View entering={listEnter(index)} exiting={listExit}>
+          <Card style={styles.card}>
+            <View style={styles.text}>
+              <AppText variant="h3">{item.word}</AppText>
+              {item.translation ? (
+                <AppText>{item.translation}</AppText>
+              ) : (
+                <AppText color="textSecondary">Sem tradução</AppText>
+              )}
+              {item.context && (
+                <AppText variant="small" color="textSecondary" numberOfLines={2}>
+                  {item.context}
+                </AppText>
+              )}
+              {item.article_title && (
+                <AppText variant="caption" color="textSecondary" numberOfLines={1}>
+                  {item.article_title}
+                </AppText>
+              )}
+            </View>
+            <IconButton
+              icon="trash-outline"
+              color="textSecondary"
+              accessibilityLabel={`Remover ${item.word}`}
+              onPress={() => confirmRemove(item)}
+            />
+          </Card>
+      </Animated.View>
       )}
       style={styles.container}
       contentContainerStyle={styles.list}
@@ -137,13 +150,34 @@ export default function VocabularyScreen() {
           tintColor={colors.primary500}
         />
       }
+      ListHeaderComponent={
+        words.length > 0 && toReview !== null ? (
+          <Card style={styles.review}>
+            <AppText variant="overline" color="primary700">
+              Revisão de hoje
+            </AppText>
+            <AppText>
+              {toReview > 0
+                ? `${formatNumber(toReview)} ${toReview === 1 ? "palavra" : "palavras"} a revisar`
+                : "Nada para revisar agora. Palavras salvas entram na revisão no dia seguinte."}
+            </AppText>
+            {toReview > 0 && (
+              <Button
+                title={`Revisar (${formatNumber(toReview)})`}
+                icon="albums-outline"
+                onPress={() => router.push("/review")}
+              />
+            )}
+          </Card>
+        ) : null
+      }
       ListEmptyComponent={
         <EmptyState
           icon="language-outline"
           illustration={require("@/assets/images/empty-vocabulary.png")}
           title="Nenhuma palavra salva ainda"
           message="Toque em uma palavra durante a leitura para salvá-la aqui."
-          action={{ label: "Explorar textos", onPress: () => router.navigate("/explore") }}
+          action={{ label: "Ver textos", onPress: () => router.navigate("/read") }}
         />
       }
     />
@@ -163,5 +197,6 @@ const styles = StyleSheet.create({
   errorText: { textAlign: "center" },
   list: { flexGrow: 1, gap: spacing.md, padding: spacing.lg },
   card: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  review: { gap: spacing.sm, backgroundColor: colors.primary50, borderColor: colors.primary100 },
   text: { flex: 1, gap: spacing.xs },
 });

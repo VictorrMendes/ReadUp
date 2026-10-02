@@ -1,9 +1,20 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useEffect } from "react";
 import { Image, StyleSheet, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 import { AppText } from "@/components/app-text";
 import { WeekStrip } from "@/components/week-strip";
 import { formatDays, formatNumber } from "@/lib/format";
+import { easings } from "@/lib/motion";
 import type { DailyStat } from "@/lib/stats";
 import { colors, fontFamily, radius, spacing } from "@/theme";
 
@@ -48,6 +59,26 @@ export function StreakCard({
   week,
 }: Props) {
   const caption = streakCaption(current, longest, activeToday, goalMetToday);
+  const reduceMotion = useReducedMotion();
+  const pulse = useSharedValue(1);
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.get() }] }));
+
+  // ofensiva mantida hoje: a chama pulsa duas vezes ao aparecer (600 ms cada), depois fica quieta
+  useEffect(() => {
+    if (!activeToday || reduceMotion) return;
+    pulse.set(
+      withDelay(
+        300,
+        withRepeat(
+          withSequence(
+            withTiming(1.15, { duration: 300, easing: easings.standard }),
+            withTiming(1, { duration: 300, easing: easings.standard }),
+          ),
+          2,
+        ),
+      ),
+    );
+  }, [activeToday, reduceMotion, pulse]);
   const broken = current === 0 && longest > 0;
   const showFreezes = freezes !== undefined && current > 0;
   const label = [
@@ -61,8 +92,8 @@ export function StreakCard({
   return (
     <View style={styles.card}>
       <View style={styles.row} accessible accessibilityLabel={label}>
-        <View
-          style={[styles.flame, goalMetToday && styles.goldFlame]}
+        <Animated.View
+          style={[styles.flame, goalMetToday && styles.goldFlame, pulseStyle]}
           testID={goalMetToday ? "gold-flame" : undefined}
         >
           <Image
@@ -75,7 +106,7 @@ export function StreakCard({
             accessibilityIgnoresInvertColors
             accessible={false}
           />
-        </View>
+        </Animated.View>
         <View style={styles.text}>
           <AppText variant="h2">{formatDays(current)}</AppText>
           <AppText variant="small" color="streak700">

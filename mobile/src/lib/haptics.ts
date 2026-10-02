@@ -19,7 +19,13 @@ export const haptic = {
       ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm)
       : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     ).catch(ignore),
-  /** vitória: meta batida, junto do confete */
+  /** segurar para traduzir a frase */
+  hold: () =>
+    void (android
+      ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Long_Press)
+      : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    ).catch(ignore),
+  /** vitória: meta batida, acerto na revisão, junto da animação */
   success: () =>
     void (android
       ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm)

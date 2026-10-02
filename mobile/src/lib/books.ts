@@ -31,6 +31,23 @@ export function getBook(token: string, id: number): Promise<BookDetail> {
   return apiFetch<BookDetail>(`/books/${id}`, { token });
 }
 
+/**
+ * Título legível para livros importados antes da limpeza no backend (mesma regra de
+ * app/books/router.py::_title): decodifica "%20", "_" vira espaço e, num nome sem espaços,
+ * hífens viram espaços ("harry-potter-and-the-stone").
+ */
+export function bookTitle(raw: string): string {
+  let name = raw;
+  try {
+    name = decodeURIComponent(raw);
+  } catch {
+    // "%" solto: mantém como veio
+  }
+  name = name.replace(/_/g, " ");
+  if (!name.trim().includes(" ") && (name.match(/-/g)?.length ?? 0) >= 2) name = name.replace(/-/g, " ");
+  return name.split(/\s+/).filter(Boolean).join(" ") || raw;
+}
+
 // nome original sem caracteres de caminho (vira o título do livro no backend)
 function safeFileName(name: string): string {
   return name.replace(/[/\\:*?"<>|]/g, "_").trim() || "livro.pdf";

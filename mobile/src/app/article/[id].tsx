@@ -1,6 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
-import { memo, useEffect, useRef, useState } from "react";
+import { StatusBar } from "expo-status-bar";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -9,6 +10,7 @@ import {
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type TextStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,16 +20,26 @@ import { Button } from "@/components/button";
 import { CompletionScreen } from "@/components/completion-screen";
 import { IconButton } from "@/components/icon-button";
 import { ProgressBar } from "@/components/progress-bar";
+import { ReaderSettingsSheet } from "@/components/reader-settings-sheet";
 import { WordPopup } from "@/components/word-popup";
 import { ApiError } from "@/lib/api";
 import { getArticle, listArticles, pickNextText, type ArticleDetail } from "@/lib/articles";
+import { bookTitle } from "@/lib/books";
 import { useAuth } from "@/lib/auth";
 import { formatNumber } from "@/lib/format";
+import { haptic } from "@/lib/haptics";
 import { getGoal, type GoalStatus } from "@/lib/preferences";
 import { endState, scrollProgress, type EndState, type FinishAttempt } from "@/lib/reading";
+import {
+  READER_THEMES,
+  bodyStyle,
+  titleStyle,
+  useReaderSettings,
+  type ReaderTheme,
+} from "@/lib/reader-settings";
 import { getSummary } from "@/lib/stats";
 import { useReadingSession } from "@/lib/use-reading-session";
-import { sentenceOf, tokenize } from "@/lib/vocabulary";
+import { chunkParagraph, sentenceText } from "@/lib/vocabulary";
 import { colors, fontFamily, spacing } from "@/theme";
 
 const READING_MAX_WIDTH = 680;
@@ -38,41 +50,77 @@ function goBack() {
   else router.replace("/");
 }
 
-// palavra tocada: onde está (parágrafo e trecho) e o que vai para o WordPopup
-type Selection = { paragraph: number; piece: number; word: string; sentence: string };
+// seleção no leitor: uma palavra (toque) ou a frase inteira (dedo segurado); o que vai ao WordPopup
+type Selection = {
+  paragraph: number;
+  chunk: number; // bloco tocado
+  sentenceIndex: number; // frase do bloco dentro do parágrafo
+  word: string | null; // null = frase inteira
+  sentence: string;
+};
 
-// Um parágrafo continua um único texto corrido; cada palavra é um trecho tocável dentro dele.
-// A palavra tocada fica grifada enquanto o painel está aberto.
+// Cada palavra é um bloco próprio (com a pontuação e o espaço em volta) numa linha que quebra
+// sozinha: o toque pega a altura inteira da linha, em vez do contorno exato das letras de um
+// trecho dentro de um texto só (que falhava em toques rápidos). Segurar escolhe a frase.
 const Paragraph = memo(function Paragraph({
   text,
   index,
-  selectedPiece,
+  selectedChunk,
+  selectedSentence,
   onSelect,
+  textStyle,
+  markStyle,
 }: {
   text: string;
   index: number;
-  selectedPiece: number | null;
+  selectedChunk: number | null; // palavra grifada
+  selectedSentence: number | null; // frase grifada
   onSelect: (selection: Selection) => void;
+  // aparência escolhida no painel "Aa" (fonte, tamanho, cor do tema)
+  textStyle: TextStyle;
+  markStyle: TextStyle;
 }) {
+  const chunks = useMemo(() => chunkParagraph(text), [text]);
   return (
-    <AppText variant="reading" style={styles.paragraph}>
-      {tokenize(text).map((piece, i) => {
-        const word = piece.word;
-        if (word === null) return piece.text;
+    // leitor de tela lê o parágrafo inteiro, não palavra por palavra
+    <View style={styles.paragraph} accessible accessibilityLabel={text}>
+      {chunks.map((chunk, i) => {
+        // frase grifada: o bloco inteiro (grifo contínuo); palavra tocada: só ela, sem a pontuação
+        const sentenceMarked = chunk.sentence === selectedSentence;
+        const wordMarked = i === selectedChunk && !sentenceMarked;
+        const select = (word: string | null) =>
+          onSelect({
+            paragraph: index,
+            chunk: i,
+            sentenceIndex: chunk.sentence,
+            word,
+            sentence: sentenceText(chunks, chunk.sentence),
+          });
         return (
           <Text
             key={i}
             suppressHighlighting
-            style={i === selectedPiece && styles.marked}
-            onPress={() =>
-              onSelect({ paragraph: index, piece: i, word, sentence: sentenceOf(text, i) })
-            }
+            style={[textStyle, sentenceMarked && markStyle]}
+            onPress={chunk.word === null ? undefined : () => select(chunk.word)}
+            onLongPress={() => {
+              // frase inteira escolhida: um toque firme confirma o gesto
+              haptic.hold();
+              select(null);
+            }}
           >
-            {piece.text}
+            {wordMarked ? (
+              <>
+                {chunk.text.slice(0, chunk.start)}
+                <Text style={markStyle}>{chunk.text.slice(chunk.start, chunk.end)}</Text>
+                {chunk.text.slice(chunk.end)}
+              </>
+            ) : (
+              chunk.text
+            )}
           </Text>
         );
       })}
-    </AppText>
+    </View>
   );
 });
 
@@ -84,25 +132,31 @@ function TextEnd({
   onFinish,
   primaryAction,
   secondaryAction,
+  theme,
 }: {
   state: EndState;
   finishing: boolean;
   onFinish: () => void;
   primaryAction: NavAction | null;
   secondaryAction: NavAction;
+  theme: ReaderTheme;
 }) {
+  const text = { color: theme.text };
+  const secondary = { color: theme.secondary };
+  const end = [styles.end, { borderTopColor: theme.border }];
   if (state.kind === "done") {
     return (
-      <View style={styles.end}>
+      <View style={end}>
         <View style={styles.inline}>
           <Ionicons name="checkmark-circle" size={20} color={colors.success600} />
-          <AppText style={styles.semibold}>Você já concluiu este texto</AppText>
+          <AppText style={[styles.semibold, text]}>Você já concluiu este texto</AppText>
         </View>
         {primaryAction && (
           <Button title={primaryAction.label} onPress={primaryAction.onPress} />
         )}
         <Button
-          variant={primaryAction ? "ghost" : "primary"}
+          // no tema escuro o "ghost" (texto índigo) não tem contraste: vira secondary (fundo claro)
+          variant={primaryAction ? (theme.dark ? "secondary" : "ghost") : "primary"}
           title={secondaryAction.label}
           onPress={secondaryAction.onPress}
         />
@@ -110,20 +164,30 @@ function TextEnd({
     );
   }
   return (
-    <View style={styles.end}>
-      <AppText variant="h3" accessibilityRole="header">
+    <View style={end}>
+      <AppText variant="h3" accessibilityRole="header" style={text}>
         Você chegou ao fim
       </AppText>
       <Button title="Concluir leitura" icon="checkmark" loading={finishing} onPress={onFinish} />
       {state.kind === "too-fast" && (
-        <AppText variant="small" color="textSecondary" accessibilityLiveRegion="polite">
+        <AppText
+          variant="small"
+          color="textSecondary"
+          style={secondary}
+          accessibilityLiveRegion="polite"
+        >
           Você passou rápido por este texto. Para contar como lido, leia com calma: faltam cerca
           de {formatNumber(state.seconds)} {state.seconds === 1 ? "segundo" : "segundos"} de
           leitura.
         </AppText>
       )}
       {state.kind === "error" && (
-        <AppText variant="small" color="textSecondary" accessibilityLiveRegion="polite">
+        <AppText
+          variant="small"
+          color="textSecondary"
+          style={secondary}
+          accessibilityLiveRegion="polite"
+        >
           Não foi possível confirmar agora. Tente de novo.
         </AppText>
       )}
@@ -143,6 +207,12 @@ export default function ArticleScreen() {
   const [reloadKey, setReloadKey] = useState(0);
   const [progress, setProgress] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
+  const { settings, update: updateSettings } = useReaderSettings();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const theme = READER_THEMES[settings.theme];
+  // estilos memorizados: os parágrafos (memo) só re-renderizam quando a aparência muda
+  const paragraphStyle = useMemo(() => bodyStyle(settings), [settings]);
+  const markStyle = useMemo(() => ({ backgroundColor: theme.mark }), [theme]);
   // conclusão marcada pelo toque em "Concluir leitura" (o servidor valida)
   const [finishedHere, setFinishedHere] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -254,9 +324,9 @@ export default function ArticleScreen() {
         return;
       }
     } catch {
-      // sem lista: cai no Explorar
+      // sem lista: cai na aba Ler
     }
-    router.navigate("/explore");
+    router.navigate("/read");
   }
 
   const notFound = !validId || error?.notFound;
@@ -275,7 +345,7 @@ export default function ArticleScreen() {
         : null;
   const secondaryAction: NavAction =
     bookId === null
-      ? { label: "Voltar ao Explorar", onPress: () => router.navigate("/explore") }
+      ? { label: "Ver mais textos", onPress: () => router.navigate("/read") }
       : {
           label: "Voltar ao livro",
           onPress: () =>
@@ -287,19 +357,33 @@ export default function ArticleScreen() {
     .filter(Boolean);
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.safe}>
+    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: theme.background }]}>
+      <StatusBar style={theme.dark ? "light" : "dark"} />
       <View style={styles.topBar}>
-        <IconButton icon="arrow-back" accessibilityLabel="Voltar" onPress={goBack} />
+        <IconButton
+          icon="arrow-back"
+          accessibilityLabel="Voltar"
+          color={theme.dark ? "surface" : "textPrimary"}
+          onPress={goBack}
+        />
         {article && (
           <View style={styles.progress}>
             <ProgressBar value={progress} size="thin" />
           </View>
         )}
+        {article && (
+          <IconButton
+            icon="text"
+            accessibilityLabel="Aparência do texto"
+            color={theme.dark ? "surface" : "textPrimary"}
+            onPress={() => setSettingsOpen(true)}
+          />
+        )}
       </View>
 
       {notFound ? (
         <View style={styles.center}>
-          <AppText>Texto não encontrado</AppText>
+          <AppText style={{ color: theme.text }}>Texto não encontrado</AppText>
           <Button variant="secondary" title="Voltar" onPress={goBack} />
         </View>
       ) : error ? (
@@ -331,35 +415,56 @@ export default function ArticleScreen() {
           }}
         >
           <View style={styles.column}>
-            <AppText variant="h1" accessibilityRole="header">
+            <AppText variant="readingTitle" accessibilityRole="header" style={titleStyle(settings)}>
               {article.title}
             </AppText>
             <View style={styles.meta}>
-              <AppText variant="small" color="textSecondary">
-                {[article.category, article.difficulty, `${article.estimated_minutes} min`]
+              <AppText variant="small" color="textSecondary" style={{ color: theme.secondary }}>
+                {[
+                  article.book_title ? bookTitle(article.book_title) : article.category,
+                  article.difficulty,
+                  `${article.estimated_minutes} min`,
+                ]
                   .filter(Boolean)
                   .join(" · ")}
               </AppText>
               {done && (
                 <View style={styles.inline}>
                   <Ionicons name="checkmark-circle" size={16} color={colors.success600} />
-                  <AppText variant="small" style={styles.semibold}>
+                  <AppText variant="small" style={[styles.semibold, { color: theme.text }]}>
                     Concluído
                   </AppText>
                 </View>
               )}
             </View>
+            <AppText variant="caption" style={[styles.hint, { color: theme.secondary }]}>
+              Toque numa palavra para traduzir · segure para traduzir a frase
+            </AppText>
             {paragraphs?.map((paragraph, index) => (
               <Paragraph
                 key={index}
                 text={paragraph}
                 index={index}
-                selectedPiece={selection?.paragraph === index ? selection.piece : null}
+                selectedChunk={
+                  selection?.paragraph === index && selection.word !== null ? selection.chunk : null
+                }
+                selectedSentence={
+                  selection?.paragraph === index && selection.word === null
+                    ? selection.sentenceIndex
+                    : null
+                }
                 onSelect={setSelection}
+                textStyle={paragraphStyle}
+                markStyle={markStyle}
               />
             ))}
             {article.attribution && (
-              <Attribution text={article.attribution} url={article.source_url} />
+              <Attribution
+                text={article.attribution}
+                url={article.source_url}
+                textColor={theme.secondary}
+                linkColor={theme.link}
+              />
             )}
             <TextEnd
               state={endState(done, attempt)}
@@ -367,6 +472,7 @@ export default function ArticleScreen() {
               onFinish={() => void onFinish()}
               primaryAction={primaryAction}
               secondaryAction={secondaryAction}
+              theme={theme}
             />
           </View>
         </ScrollView>
@@ -402,6 +508,12 @@ export default function ArticleScreen() {
           }}
         />
       )}
+      <ReaderSettingsSheet
+        visible={settingsOpen}
+        settings={settings}
+        onChange={updateSettings}
+        onClose={() => setSettingsOpen(false)}
+      />
       <WordPopup
         selection={selection}
         token={token}
@@ -420,7 +532,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     paddingHorizontal: spacing.sm,
-    paddingRight: spacing.xl,
   },
   progress: { flex: 1 },
   center: {
@@ -444,11 +555,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     columnGap: spacing.md,
     marginTop: spacing.sm,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
   },
   inline: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  paragraph: { marginBottom: spacing.lg },
-  marked: { backgroundColor: colors.primary100 },
+  paragraph: { flexDirection: "row", flexWrap: "wrap", marginBottom: spacing.lg },
+  hint: { marginBottom: spacing.xl },
   // fim do texto: separado do último parágrafo por uma divisória, sem cara de gamificação
   end: {
     gap: spacing.md,

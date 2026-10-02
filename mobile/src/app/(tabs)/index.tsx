@@ -1,8 +1,8 @@
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/app-text";
@@ -23,7 +23,9 @@ import {
 } from "@/lib/articles";
 import { useAuth } from "@/lib/auth";
 import { formatLongDate, formatNumber } from "@/lib/format";
+import { enterFrom } from "@/lib/motion";
 import { getGoal, type GoalStatus } from "@/lib/preferences";
+import { syncReminders } from "@/lib/reminders";
 import { getDaily, getSummary, type DailyStat, type StatsSummary } from "@/lib/stats";
 import { useStreakHidden } from "@/lib/streak-visibility";
 import { colors, fontFamily, spacing } from "@/theme";
@@ -31,8 +33,6 @@ import { colors, fontFamily, spacing } from "@/theme";
 // arte do herói: 390×280 (escala pela largura); os cartões começam 64dp antes do fim dela
 const HERO_RATIO = 280 / 390;
 const CARD_OVERLAP = 64;
-// cartões entram em cascata (45 ms entre eles) quando os dados chegam; voltar à aba não repete
-const ENTER = [0, 1, 2, 3].map((i) => FadeInDown.duration(260).delay(i * 45));
 
 type HomeData = {
   goal: GoalStatus;
@@ -98,6 +98,16 @@ export default function HomeScreen() {
     }, [token, user?.english_level, signOut]),
   );
 
+  // lembretes acompanham o dia: hoje não lembra se a ofensiva já está garantida ou a meta
+  // cumprida; com a ofensiva escondida, o texto não fala dela
+  useEffect(() => {
+    if (!data || streakHidden === null) return;
+    void syncReminders(
+      data.goal.completed || !!data.summary?.streak_active_today,
+      streakHidden ? 0 : (data.summary?.streak_current ?? 0),
+    );
+  }, [data, streakHidden]);
+
   const goal = data?.goal;
   const summary = data?.summary;
   const heroHeight = width * HERO_RATIO;
@@ -107,7 +117,7 @@ export default function HomeScreen() {
   const action = goal
     ? {
         ...goalAction(goal.completed, !!data?.continueReading),
-        onPress: () => (readTarget ? openArticle(readTarget.id) : router.navigate("/explore")),
+        onPress: () => (readTarget ? openArticle(readTarget.id) : router.navigate("/read")),
       }
     : undefined;
 
@@ -158,7 +168,7 @@ export default function HomeScreen() {
           ) : (
             <>
               {goal?.target != null && (
-                <Animated.View entering={ENTER[0]}>
+                <Animated.View entering={enterFrom(0)}>
                   <DailyGoal
                     target={goal.target}
                     wordsToday={goal.words_today}
@@ -170,7 +180,7 @@ export default function HomeScreen() {
               )}
 
               {summary && streakHidden === false && (
-                <Animated.View entering={ENTER[1]}>
+                <Animated.View entering={enterFrom(1)}>
                   <StreakCard
                     current={summary.streak_current}
                     longest={summary.streak_longest}
@@ -184,12 +194,12 @@ export default function HomeScreen() {
               )}
 
               {next && (
-                <Animated.View entering={ENTER[2]}>
+                <Animated.View entering={enterFrom(2)}>
                   <NextAchievementCard achievement={next} />
                 </Animated.View>
               )}
 
-              <Animated.View entering={ENTER[3]} style={styles.section}>
+              <Animated.View entering={enterFrom(3)} style={styles.section}>
                 <AppText variant="h3" accessibilityRole="header">
                   {data.continueReading ? "Continuar lendo" : "Sugerido para você"}
                 </AppText>
@@ -198,7 +208,7 @@ export default function HomeScreen() {
                 ) : (
                   <>
                     <AppText color="textSecondary">Você já leu todos os textos do seu nível.</AppText>
-                    <Button title="Explorar textos" onPress={() => router.navigate("/explore")} />
+                    <Button title="Ver textos" onPress={() => router.navigate("/read")} />
                   </>
                 )}
               </Animated.View>

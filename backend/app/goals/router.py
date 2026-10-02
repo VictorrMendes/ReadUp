@@ -24,12 +24,13 @@ class GoalIn(BaseModel):
 
 
 def _status(session: Session, user_id: int) -> GoalStatus:
-    words_today = session.scalar(
-        select(DailyStats.words_read).where(
+    today = session.execute(
+        select(DailyStats.words_read, DailyStats.goal_met).where(
             DailyStats.user_id == user_id, DailyStats.day == local_today()
         )
-    )
-    return goal_status(active_target(session, user_id), words_today or 0)
+    ).one_or_none()
+    words_today, met_today = (today.words_read, today.goal_met) if today else (0, False)
+    return goal_status(active_target(session, user_id), words_today, met_today)
 
 
 @router.get("")

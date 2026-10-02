@@ -20,6 +20,8 @@ readup/
 - **Ofensiva (streak)**: dias consecutivos com o mínimo do dia (50 palavras lidas) e recorde histórico. Meta batida ganha a chama dourada. 2 escudos cobrem dias em branco sozinhos (1 volta a cada 7 dias de ofensiva, máximo 2). No app, a ofensiva pode ser escondida no Perfil.
 - **Conquistas (achievements)**: medalhas desbloqueadas automaticamente por marcos de leitura, ofensiva e vocabulário.
 - **Vocabulário com tradução**: consulta instantânea de palavras via MyMemory com cache global e lista pessoal de palavras salvas.
+- **Revisão espaçada**: palavras salvas voltam em cartões (caixas de Leitner: 1, 3, 7, 14, 30 e 90 dias), até 20 respostas por dia e +2 XP por acerto (teto de 20 XP/dia).
+- **Lembrete diário**: notificação local (manhã, tarde ou noite) escolhida no onboarding ou no Perfil; o lembrete do dia é cancelado quando a meta já foi cumprida.
 - **PDFs privados**: envio de livros e documentos em PDF pelo usuário, processados em capítulos privados.
 - **Notícias**: agregação periódica de artigos de fontes em inglês simples (VOA Learning English e Wikinews — ambas as fontes estão congeladas/modo arquivo).
 - **Estatísticas no Perfil**: visão geral de palavras lidas, ofensiva, tempo de leitura e vocabulário acumulado.

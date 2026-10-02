@@ -4,7 +4,7 @@ import { AppText } from "@/components/app-text";
 import { PressableScale } from "@/components/pressable-scale";
 import { Card } from "@/components/card";
 import { ProgressBar } from "@/components/progress-bar";
-import type { Book } from "@/lib/books";
+import { bookTitle, type Book } from "@/lib/books";
 import { formatNumber } from "@/lib/format";
 import { radius, ripple, spacing } from "@/theme";
 
@@ -21,7 +21,7 @@ export function BookCard({ book, onPress }: Props) {
   const read = `${formatNumber(book.words_read)} de ${formatNumber(book.word_count)} palavras`;
   const size = `${plural(book.chapter_count, "capítulo", "capítulos")} · ${plural(book.page_count, "página", "páginas")}`;
   // leitor de tela: um rótulo só, em vez de ler item por item
-  const label = [book.title, read, book.progress > 0 && `${book.progress}% lido`, size]
+  const label = [bookTitle(book.title), read, book.progress > 0 && `${book.progress}% lido`, size]
     .filter(Boolean)
     .join(", ");
 
@@ -31,11 +31,12 @@ export function BookCard({ book, onPress }: Props) {
       accessibilityRole="button"
       accessibilityLabel={label}
       android_ripple={ripple}
-      style={({ pressed }) => [styles.pressable]}
+      scaleTo={0.98}
+      style={styles.pressable}
     >
       <Card style={styles.card}>
-        <AppText variant="h3" numberOfLines={2}>
-          {book.title}
+        <AppText variant="cardTitle" numberOfLines={2}>
+          {bookTitle(book.title)}
         </AppText>
         <AppText variant="small" color="textSecondary">
           {read}

@@ -67,6 +67,7 @@ export function GoalRing({
 
   return (
     <View
+      testID="goal-ring"
       style={{ width: size, height: size }}
       accessible={false}
       importantForAccessibility="no-hide-descendants"

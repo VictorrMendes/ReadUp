@@ -1,14 +1,14 @@
 import { Easing, type PressableAndroidRippleConfig, type TextStyle, type ViewStyle } from "react-native";
 
-// Tokens do Design System (nota "ReadUp — Design System" + design-v3). Telas usam só estes valores.
-// Papéis: azul = marca e ação; verde = meta cumprida; laranja = só ofensiva; dourado = recompensa.
+// Tokens do Design System (nota "ReadUp — Design System" + design-v3, paleta Índigo tinta). Telas usam só
+// estes valores. Papéis: índigo = marca e ação; verde = meta cumprida; laranja = só ofensiva; dourado = recompensa.
 export const colors = {
-  primary50: "#EFF6FF", // superfície tingida azul
-  primary100: "#DBEAFE",
-  primary200: "#BFDBFE",
-  primary500: "#2563EB",
-  primary600: "#1D4ED8",
-  primary700: "#1E40AF", // texto sobre primary50 (8.01:1)
+  primary50: "#F2F2FA", // superfície tingida índigo
+  primary100: "#E8E8F6",
+  primary200: "#CFCFEC",
+  primary500: "#3B3A98", // ação e marca (9.36:1 com texto branco)
+  primary600: "#2F2E80", // pressed
+  primary700: "#2C2B78", // texto sobre primary50 (10.94:1) / primary100 (10.04)
   success500: "#22C55E",
   success100: "#DCFCE7",
   success600: "#16A34A", // ícones de concluído (3.30:1 sobre surface); success500 fica na barra e superfícies
@@ -22,16 +22,16 @@ export const colors = {
   gold200: "#FDE68A", // trilho da barra dourada / borda
   gold600: "#D97706", // ícone e borda da medalha (3.19:1 sobre surface, só não-texto)
   gold700: "#B45309", // texto e ícone sobre gold50/100/surface (4.84 / 4.51 / 5.02)
-  surfaceMuted: "#F1F5F9", // círculo de medalha bloqueada, dia sem meta
+  surfaceMuted: "#F3F0EA", // círculo de medalha bloqueada, dia sem meta
   error: "#EF4444", // só borda e ícone (3.6:1 como texto não passa AA)
-  errorText: "#DC2626", // texto de erro e fundo do botão destrutivo (4.62:1 sobre background)
-  background: "#F8FAFC",
+  errorText: "#DC2626", // texto de erro e fundo do botão destrutivo (4.55:1 sobre background)
+  background: "#FAF8F4", // "papel" quente
   surface: "#FFFFFF",
-  textPrimary: "#0F172A",
-  textSecondary: "#64748B",
-  border: "#E2E8F0", // cards e divisórias
-  borderStrong: "#64748B", // borda de campo de formulário (4.76:1 sobre surface)
-  overlay: "rgba(15, 23, 42, 0.5)", // textPrimary a 50%: fundo escurecido atrás do BottomSheet
+  textPrimary: "#1C1917", // 16.49:1 sobre background
+  textSecondary: "#6B6560", // 5.42:1 sobre background, 5.74 sobre surface
+  border: "#E7E2DA", // cards e divisórias
+  borderStrong: "#6B6560", // borda de campo de formulário (5.74:1 sobre surface)
+  overlay: "rgba(28, 25, 23, 0.5)", // textPrimary a 50%: fundo escurecido atrás do BottomSheet
 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
@@ -41,7 +41,7 @@ export const radius = { sm: 8, md: 12, lg: 16, card: 20, sheet: 28, pill: 999 } 
 // sombra só no cartão herói de cada tela (a meta no Início)
 export const shadow = {
   card: {
-    shadowColor: "#0F172A",
+    shadowColor: "#1C1917",
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -79,11 +79,14 @@ export const fontSize = {
   caption: 12,
 } as const;
 
-// Inter carregada no src/app/_layout.tsx (useFonts). Com fonte custom, o peso vem da família, não de fontWeight.
+// Inter (interface) e Literata (texto de leitura e títulos de textos) carregadas no src/app/_layout.tsx
+// (useFonts). Com fonte custom, o peso vem da família, não de fontWeight.
 export const fontFamily = {
   regular: "Inter_400Regular",
   semibold: "Inter_600SemiBold",
   bold: "Inter_700Bold",
+  serif: "Literata_400Regular",
+  serifSemibold: "Literata_600SemiBold",
 } as const;
 
 export const typography = {
@@ -100,8 +103,17 @@ export const typography = {
   h2: { fontFamily: fontFamily.semibold, fontSize: fontSize.h2, lineHeight: 30 },
   h3: { fontFamily: fontFamily.semibold, fontSize: fontSize.h3, lineHeight: 26 },
   body: { fontFamily: fontFamily.regular, fontSize: fontSize.body, lineHeight: 24 },
-  // leitura longa: line-height ~1.6
-  reading: { fontFamily: fontFamily.regular, fontSize: fontSize.reading, lineHeight: 29 },
+  // leitura longa: serifa, line-height ~1.6
+  reading: { fontFamily: fontFamily.serif, fontSize: fontSize.reading, lineHeight: 29 },
+  // título do texto no leitor
+  readingTitle: {
+    fontFamily: fontFamily.serifSemibold,
+    fontSize: fontSize.h1,
+    lineHeight: 36,
+    letterSpacing: -0.3,
+  },
+  // título de texto/livro nos cartões
+  cardTitle: { fontFamily: fontFamily.serifSemibold, fontSize: fontSize.h3, lineHeight: 25 },
   small: { fontFamily: fontFamily.regular, fontSize: fontSize.small, lineHeight: 20 },
   caption: { fontFamily: fontFamily.regular, fontSize: fontSize.caption, lineHeight: 16 },
   // rótulo de seção em maiúsculas ("META DE HOJE")
@@ -127,7 +139,7 @@ export type TypographyVariant = keyof typeof typography;
 // área de toque mínima (acessibilidade)
 export const touchTarget = 44;
 
-// Feedback de toque padrão: escala animada no PressableScale + cor de pressed / ripple.
+// Feedback de toque: escala animada no PressableScale (components/pressable-scale.tsx) + cor de pressed.
 export const ripple: PressableAndroidRippleConfig = { color: colors.primary100 };
 
 // limite de escala da fonte do sistema para rótulos compactos (badges, chips, tab bar)

@@ -17,8 +17,8 @@ type IconName = ComponentProps<typeof Ionicons>["name"];
 
 const TABS: { name: string; title: string; icon: IconName; iconOutline: IconName }[] = [
   { name: "index", title: "Início", icon: "home", iconOutline: "home-outline" },
-  { name: "explore", title: "Explorar", icon: "compass", iconOutline: "compass-outline" },
-  { name: "library", title: "Biblioteca", icon: "library", iconOutline: "library-outline" },
+  // textos e livros juntos (design-ajust): app/(tabs)/read.tsx
+  { name: "read", title: "Ler", icon: "book", iconOutline: "book-outline" },
   { name: "vocabulary", title: "Vocabulário", icon: "language", iconOutline: "language-outline" },
   { name: "profile", title: "Perfil", icon: "person", iconOutline: "person-outline" },
 ];

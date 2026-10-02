@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/app-text";
 import { PressableScale } from "@/components/pressable-scale";
+import { haptic } from "@/lib/haptics";
 import type { Option } from "@/lib/preferences";
 import { colors, fontFamily, radius, ripple, spacing, touchTarget } from "@/theme";
 
@@ -31,7 +32,10 @@ export function OptionList<T extends string | number>({
         return (
           <PressableScale
             key={String(option.value)}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              if (!selected) haptic.select();
+              onChange(option.value);
+            }}
             disabled={disabled}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected, disabled }}

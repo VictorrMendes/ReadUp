@@ -11,7 +11,11 @@ def credit(word_count: int, words_read_before: int, reported_progress: int, seco
 
 
 def progress_percent(words_read: int, word_count: int) -> int:
-    """0..100 (floor); 100 só quando todas as palavras foram creditadas."""
+    """0..100 (floor); 100 só quando todas as palavras foram creditadas. Quem já leu alguma
+    palavra fica com pelo menos 1: num livro de 80 mil palavras, 645 lidas não podem virar 0%
+    (sumiria de "continuar lendo" e de "livros iniciados")."""
     if words_read >= word_count:
         return 100
-    return min(99, words_read * 100 // word_count)
+    if words_read <= 0:
+        return 0
+    return max(1, min(99, words_read * 100 // word_count))

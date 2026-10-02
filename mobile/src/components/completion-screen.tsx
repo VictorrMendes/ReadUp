@@ -481,7 +481,7 @@ function UntilTomorrow({ streak, onDone }: { streak: number | null; onDone: () =
       ]}
     >
       <Image
-        source={require("../../assets/images/celebrate.png")}
+        source={require("../../assets/images/mascot.png")}
         style={styles.illustration}
         accessibilityIgnoresInvertColors
         accessible={false}

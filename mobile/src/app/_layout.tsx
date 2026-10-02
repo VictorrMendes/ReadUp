@@ -2,6 +2,8 @@
 import { Inter_400Regular } from "@expo-google-fonts/inter/400Regular";
 import { Inter_600SemiBold } from "@expo-google-fonts/inter/600SemiBold";
 import { Inter_700Bold } from "@expo-google-fonts/inter/700Bold";
+import { Literata_400Regular } from "@expo-google-fonts/literata/400Regular";
+import { Literata_600SemiBold } from "@expo-google-fonts/literata/600SemiBold";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -21,7 +23,13 @@ function RootNavigator() {
   const { token, user, userError, isLoading, refreshUser } = useAuth();
   const reduceMotion = useReduceMotion();
   const authAnimation = reduceMotion ? "none" : "fade";
-  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Literata_400Regular,
+    Literata_600SemiBold,
+  });
   // se a fonte falhar, segue com a fonte do sistema em vez de travar no splash
   const ready = !isLoading && (fontsLoaded || !!fontError);
 
@@ -52,6 +60,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="article/[id]" />
         <Stack.Screen name="book/[id]" />
+        <Stack.Screen name="review" />
       </Stack.Protected>
       <Stack.Protected guard={!!user && !onboarded}>
         <Stack.Screen name="onboarding" />

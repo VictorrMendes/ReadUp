@@ -16,6 +16,13 @@ import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatNumber } from "@/lib/format";
 import { GOAL_OPTIONS, LEVEL_OPTIONS, setGoal, setLevel } from "@/lib/preferences";
+import {
+  REMINDER_OPTIONS,
+  getReminder,
+  remindersSupported,
+  setReminder,
+  type ReminderTime,
+} from "@/lib/reminders";
 import { getDaily, getSummary, type DailyStat, type StatsSummary } from "@/lib/stats";
 import { setStreakHidden, useStreakHidden } from "@/lib/streak-visibility";
 import { colors, compactFontScale, fontFamily, spacing } from "@/theme";
@@ -74,6 +81,20 @@ export default function ProfileScreen() {
       };
     }, [token, signOut]),
   );
+
+  // lembrete fica no aparelho (notificação local), não no servidor
+  const [reminder, setReminderValue] = useState<ReminderTime | null>(null);
+  const [reminderDenied, setReminderDenied] = useState(false);
+  useEffect(() => {
+    void getReminder().then(setReminderValue);
+  }, []);
+
+  async function changeReminder(time: ReminderTime) {
+    const granted = await setReminder(time).catch(() => false);
+    setReminderDenied(!granted);
+    setReminderValue(granted ? time : "off");
+    if (granted) setSaved(true);
+  }
 
   // "Salvo" some sozinho
   useEffect(() => {
@@ -234,6 +255,25 @@ export default function ProfileScreen() {
         onChange={(target) => save((t) => setGoal(t, target))}
         disabled={saving}
       />
+
+      {remindersSupported && (
+        <>
+          <AppText variant="h3" accessibilityRole="header">
+            Lembrete diário
+          </AppText>
+          {reminderDenied && (
+            <AppText variant="small" color="errorText" accessibilityLiveRegion="polite">
+              As notificações estão bloqueadas. Permita nas configurações do aparelho.
+            </AppText>
+          )}
+          <OptionList
+            options={REMINDER_OPTIONS}
+            accessibilityLabel="Lembrete diário"
+            value={reminder}
+            onChange={(time) => void changeReminder(time)}
+          />
+        </>
+      )}
 
       <View style={styles.toggle}>
         <View style={styles.toggleText}>

@@ -12,7 +12,16 @@ from sqlalchemy.orm import Session
 from app.articles.models import Article
 from app.books import pdf
 from app.books.models import Book
-from app.books.pdf import SECTION_WORDS, build_chapters, clean, extract
+from app.books.pdf import (
+    MAX_PART_WORDS,
+    SECTION_WORDS,
+    OutlineItem,
+    build_chapters,
+    clean,
+    extract,
+    strip_running_lines,
+    title_case,
+)
 from app.db import engine
 from app.reading.models import ReadingProgress
 from app.vocabulary import translator
@@ -29,7 +38,7 @@ def make_pdf(
     password: str | None = None,
 ) -> bytes:
     """PDF com uma página por lista de linhas; `outline` = sumário de 1º nível (título,
-    página); `children` = subitens do primeiro item (devem ser ignorados)."""
+    página); `children` = subitens (2º nível) do primeiro item."""
     writer = PdfWriter()
     font = DictionaryObject(
         {
@@ -101,18 +110,83 @@ def test_clean_joins_lines_undoes_hyphenation_and_splits_paragraphs() -> None:
     )
 
 
-def test_chapters_follow_the_outline_and_front_matter_joins_the_first() -> None:
+def test_chapters_follow_the_outline_and_short_front_matter_is_left_out() -> None:
+    # folha de rosto curta antes do 1º item do sumário não é leitura
     pages = ["Cover page.", words(120) + ".", words(100, "one") + ".", "More of chapter one."]
     outline = [("Chapter One", 2), ("Intro", 1)]  # fora de ordem de propósito
 
     chapters = build_chapters(pages, outline)
 
-    assert [(c.title, c.content.split("\n\n")[0]) for c in chapters] == [
-        ("Intro", "Cover page."),
-        ("Chapter One", words(100, "one") + "."),
+    assert [(c.title, c.content.split("\n\n")[0][:12]) for c in chapters] == [
+        ("Intro", "reading read"),
+        ("Chapter One", "one one one "),
     ]
-    assert chapters[1].content.endswith("\n\nMore of chapter one.")
-    assert [c.word_count for c in chapters] == [122, 104]
+    # a frase da página seguinte continua o parágrafo (as páginas são juntadas antes)
+    assert chapters[1].content.endswith(". More of chapter one.")
+    assert [c.word_count for c in chapters] == [120, 104]
+
+
+def test_long_text_before_the_first_item_is_kept_in_it() -> None:
+    # prólogo sem marcador no sumário (800+ palavras) entra no 1º capítulo
+    pages = [words(900, "prologue") + ".", words(300) + ".", words(200, "two") + "."]
+
+    chapters = build_chapters(pages, [("One", 1), ("Two", 2)])
+
+    assert [(c.title, c.word_count) for c in chapters] == [("One", 1200), ("Two", 200)]
+
+
+def test_cover_copyright_and_back_matter_are_left_out_only_at_the_ends() -> None:
+    pages = [
+        "Cover.",
+        "All rights reserved.",
+        words(200, "one") + ".",
+        words(200, "contents") + ".",  # "Contents" no meio do livro é capítulo
+        words(200, "two") + ".",
+        words(300, "about") + ".",
+        words(400, "preview") + ".",
+    ]
+    outline = [
+        ("Front Cover", 0),
+        ("Copyright", 1),
+        ("Chapter One", 2),
+        ("Contents of the Box", 3),
+        ("Chapter Two", 4),
+        ("About the Author", 5),
+        ("A preview of the next book", 6),
+    ]
+
+    chapters = build_chapters(pages, outline)
+
+    assert [(c.title, c.word_count) for c in chapters] == [
+        ("Chapter One", 200),
+        ("Contents of the Box", 200),
+        ("Chapter Two", 200),
+    ]
+
+
+def test_second_level_items_become_chapters_with_title_case() -> None:
+    # The Last Wish: "1: THE VOICE OF REASON" (1º nível) e as histórias como subitens
+    pages = [words(150, "voice") + ".", words(200, "witcher") + ".", words(150, "voice") + "."]
+    outline = [
+        OutlineItem("1: THE VOICE OF REASON", 0, 0),
+        OutlineItem("THE WITCHER", 1, 1),
+        OutlineItem("2: THE VOICE OF REASON", 2, 0),
+    ]
+
+    chapters = build_chapters(pages, outline)
+
+    assert [(c.title, c.word_count) for c in chapters] == [
+        ("1: The Voice of Reason", 150),
+        ("The Witcher", 200),
+        ("2: The Voice of Reason", 150),
+    ]
+
+
+def test_title_case_only_for_all_caps() -> None:
+    assert title_case("  THE   LORD OF THE RINGS ") == "The Lord of the Rings"
+    assert title_case("PART TWO: THE RETURN") == "Part Two: The Return"
+    assert title_case("1 The Boy Who Lived") == "1 The Boy Who Lived"
+    assert title_case("iPhone stories") == "iPhone stories"
 
 
 def test_tiny_outline_chapters_are_joined_to_the_next() -> None:
@@ -122,8 +196,8 @@ def test_tiny_outline_chapters_are_joined_to_the_next() -> None:
 
     chapters = build_chapters(pages, outline)
 
-    # 1+1+150 → "Item 0"; 1+120 → "Item 3"; o último (1 palavra) vai para o anterior
-    assert [(c.title, c.word_count) for c in chapters] == [("Item 0", 152), ("Item 3", 122)]
+    # 1+1+150 → título do que tem texto ("Item 2"); 1+120 → "Item 4"; o último vai p/ o anterior
+    assert [(c.title, c.word_count) for c in chapters] == [("Item 2", 152), ("Item 4", 122)]
     assert chapters[-1].content.endswith("End.")
     assert all(c.word_count >= 100 for c in chapters)
 
@@ -150,7 +224,7 @@ def test_single_page_section_and_empty_sections_are_removed() -> None:
     assert [c.title for c in by_outline] == ["One", "Last"]
 
 
-def test_extract_reads_text_and_first_level_outline() -> None:
+def test_extract_reads_text_and_two_outline_levels() -> None:
     data = make_pdf(
         [["Intro line."], ["Chapter text."], ["More text."]],
         outline=[("Intro", 0), ("Chapter", 1)],
@@ -160,7 +234,84 @@ def test_extract_reads_text_and_first_level_outline() -> None:
     pages, outline = extract(io.BytesIO(data))
 
     assert [page.strip() for page in pages] == ["Intro line.", "Chapter text.", "More text."]
-    assert outline == [("Intro", 0), ("Chapter", 1)]
+    assert sorted(outline, key=lambda item: item.page) == [
+        OutlineItem("Intro", 0, 0),
+        OutlineItem("Chapter", 1, 0),
+        OutlineItem("Sub item", 2, 1),
+    ]
+
+
+def test_running_headers_and_page_numbers_are_removed() -> None:
+    bodies = ["The owl flew past.", "Hagrid knocked.", "Rain fell all night.", "It was cold.",
+              "Harry woke early.", "The train left."]  # fmt: skip
+    pages = [f"{n} Harry Potter\n{body}\nMore text here.\n{n}" for n, body in enumerate(bodies, 10)]
+
+    stripped = strip_running_lines(pages)
+
+    assert stripped[0] == "The owl flew past.\nMore text here."
+    assert all("Harry Potter" not in page for page in stripped)
+
+
+def test_chapter_heading_lines_are_dropped_and_paragraphs_cross_pages() -> None:
+    first = [
+        "— CHAPTER ONE —",
+        "The Boy Who Lived",
+        "Mr and Mrs Dursley lived at number four and they",
+    ]
+    pages = [
+        "\n".join(first + [words(120), "were proud of it."]),
+        "\n".join([words(150) + "."]),
+    ]
+
+    chapters = build_chapters(pages, [("The Boy Who Lived", 0), ("Two", 1)])
+
+    assert chapters[0].title == "The Boy Who Lived"
+    assert chapters[0].content.startswith("Mr and Mrs Dursley lived")
+    # o parágrafo que continua na página seguinte não vira dois
+    assert "and they reading" in chapters[0].content
+
+
+def test_section_markers_stay_as_their_own_paragraph() -> None:
+    page = "First part ends here and the line is long enough.\nII\nSecond part starts here."
+
+    assert clean(page).split("\n\n") == [
+        "First part ends here and the line is long enough.",
+        "II",
+        "Second part starts here.",
+    ]
+
+
+def test_long_chapters_become_parts_cut_between_paragraphs() -> None:
+    paragraph = words(250) + "."
+    pages = ["\n\n".join([paragraph] * 28), words(200, "two") + "."]  # 7.000 palavras
+
+    chapters = build_chapters(pages, [("Diagon Alley", 0), ("Next", 1)])
+
+    parts = [c for c in chapters if c.title.startswith("Diagon Alley")]
+    assert [c.title for c in parts] == [
+        "Diagon Alley (1/3)",
+        "Diagon Alley (2/3)",
+        "Diagon Alley (3/3)",
+    ]
+    assert all(c.word_count <= MAX_PART_WORDS for c in parts)
+    assert sum(c.word_count for c in parts) == 7000
+    assert all(c.content.endswith(".") for c in parts)  # sem cortar parágrafo
+
+
+def test_without_outline_chapter_headings_split_the_book() -> None:
+    pages = [
+        "Title page",
+        "CHAPTER ONE\nThe Beginning\n" + words(200) + ".",
+        words(200) + ".",
+        "Chapter 2\n" + words(150, "two") + ".",
+    ]
+
+    chapters = build_chapters(pages, [])
+
+    assert [(c.title, c.word_count) for c in chapters] == [
+        ("Chapter One · The Beginning", 400),  # folha de rosto curta fica de fora
+        ("Chapter 2", 150),
+    ]
 
 
 # --- endpoints ---
@@ -238,7 +389,15 @@ def test_malicious_file_name_is_only_a_title(make_user: MakeUser, storage: Path)
 
 
 @pytest.mark.parametrize(
-    ("name", "expected"), [("   .pdf", "Livro sem título"), ("x" * 200 + ".pdf", "x" * 120)]
+    ("name", "expected"),
+    [
+        ("   .pdf", "Livro sem título"),
+        ("x" * 200 + ".pdf", "x" * 120),
+        ("The%20Last%20Wish_%20Andrzej%20Sapkowski.pdf", "The Last Wish Andrzej Sapkowski"),
+        ("harry-potter-and-the-stone.PDF", "harry potter and the stone"),
+        ("Spider-Man and Me.pdf", "Spider-Man and Me"),
+        ("Dune.pdf", "Dune"),
+    ],
 )
 def test_title_fallback_and_limit(make_user: MakeUser, name: str, expected: str) -> None:
     _, headers = make_user()
@@ -425,6 +584,8 @@ def test_chapters_are_private_to_the_book_owner(
     assert (last["book_id"], last["next_article_id"]) == (book["id"], None)
     assert first not in owner_feed and second not in owner_feed  # feed é só público
     assert [a["id"] for a in owner_continue] == [first]
+    # o capítulo diz de qual livro é (o "continuar lendo" mostra o nome do livro)
+    assert owner_continue[0]["book_title"] == mine["book_title"] == book["title"]
     assert saved.status_code == 201
     assert (book_after["words_read"], book_after["chapters"][0]["progress"]) == (105, 50)
 
@@ -456,3 +617,4 @@ def test_feed_articles_have_no_book(make_user: MakeUser, article_id: int) -> Non
     detail = client.get(f"/articles/{article_id}", headers=headers).json()
 
     assert (detail["book_id"], detail["next_article_id"]) == (None, None)
+    assert detail["book_title"] is None
