@@ -4,6 +4,8 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import app.books.models  # noqa: F401 — rodado sozinho (python -m): articles.book_id → books
+import app.users.models  # noqa: F401 — books.user_id → users
 from app.articles.models import Article
 from app.articles.text import count_words
 from app.db import engine
