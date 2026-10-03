@@ -1,0 +1,160 @@
+name: Android
+
+# APK instalável: todo PR para master/homolog gera um (link comentado no PR) e o merge vira Release.
+# A API vem da variável API_URL do Environment: "production" (master, https) ou "homolog" (homolog).
+on:
+  pull_request:
+    branches: [master, homolog]
+    paths: [mobile/**, .github/workflows/android.yml]
+  push:
+    branches: [master, homolog]
+    paths: [mobile/**, .github/workflows/android.yml]
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # PR: a branch de destino decide; push/manual: a própria branch
+    environment: ${{ (github.base_ref || github.ref_name) == 'master' && 'production' || 'homolog' }}
+    permissions:
+      contents: read
+      pull-requests: write
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    outputs:
+      apk: ${{ steps.apk.outputs.name }}
+      version: ${{ steps.apk.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # produção só com https; homolog aceita http:// (API na rede local) e libera HTTP no APK
+      - name: Check API_URL
+        env:
+          API_URL: ${{ vars.API_URL }}
+          ENVIRONMENT: ${{ (github.base_ref || github.ref_name) == 'master' && 'production' || 'homolog' }}
+        run: |
+          if [[ "$API_URL" == https://* ]]; then
+            exit 0
+          elif [[ "$API_URL" == http://* && "$ENVIRONMENT" == homolog ]]; then
+            echo "ALLOW_HTTP=true" >> "$GITHUB_ENV"
+          else
+            echo "::error::Defina a variável API_URL no Environment $ENVIRONMENT (https://...; http:// só na homolog)."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.1"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # sem a chave própria, cada execução assina com uma chave de debug nova
+      # e o Android recusa instalar por cima da versão anterior
+      - name: Release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::Sem ANDROID_KEYSTORE_BASE64: APK assinado com chave de debug (desinstale antes de atualizar)."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build
+        env:
+          API_URL: ${{ vars.API_URL }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        # o número da execução vira o versionCode: cada APK novo atualiza o anterior
+        run: >-
+          flutter build apk --release -t lib/main_prod.dart
+          --dart-define=API_URL="$API_URL"
+          --build-number=${{ github.run_number }}
+
+      - name: Name APK
+        id: apk
+        env:
+          ENVIRONMENT: ${{ (github.base_ref || github.ref_name) == 'master' && 'production' || 'homolog' }}
+        run: |
+          version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)-${{ github.run_number }}"
+          name="readup-$ENVIRONMENT-$version.apk"
+          mv build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        id: upload
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ runner.temp }}/${{ steps.apk.outputs.name }}
+          retention-days: 30
+          if-no-files-found: error
+
+      # PR de fork não tem permissão de escrita: só PRs do próprio repositório recebem o comentário
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          URL: ${{ steps.upload.outputs.artifact-url }}
+          APK: ${{ steps.apk.outputs.name }}
+          API_URL: ${{ vars.API_URL }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh pr comment "$PR" --edit-last --create-if-none --body "📱 **APK para testar:** [$APK]($URL)
+
+          API: \`$API_URL\` · commit \`${SHA::7}\`
+
+          O download vem em .zip (artefato do Actions, válido por 30 dias): extraia e abra o .apk no celular."
+
+  release:
+    name: Release
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.apk }}
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK: ${{ needs.build.outputs.apk }}
+          VERSION: ${{ needs.build.outputs.version }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ "$BRANCH" = master ]; then
+            gh release create "v$VERSION" "$APK" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "ReadUp $VERSION" --generate-notes
+          else
+            gh release create "homolog-v$VERSION" "$APK" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "ReadUp $VERSION (homolog)" --generate-notes --prerelease
+          fi

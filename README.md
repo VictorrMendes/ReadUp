@@ -4,7 +4,7 @@ Aplicativo mobile para aprender inglês pelo hábito diário de leitura.
 
 ```text
 readup/
-├── mobile/            # React Native + Expo SDK 57 + Expo Router + TypeScript
+├── mobile/            # Flutter (Dart) + BLoC, Clean Architecture por feature
 ├── backend/           # FastAPI (monólito modular em backend/app/*)
 ├── storage/pdfs/      # PDFs privados enviados pelos usuários (fora do git)
 └── docker-compose.yml # api (FastAPI) + db (PostgreSQL 17)
@@ -21,7 +21,7 @@ readup/
 - **Conquistas (achievements)**: medalhas desbloqueadas automaticamente por marcos de leitura, ofensiva e vocabulário.
 - **Vocabulário com tradução**: consulta instantânea de palavras via MyMemory com cache global e lista pessoal de palavras salvas.
 - **Revisão espaçada**: palavras salvas voltam em cartões (caixas de Leitner: 1, 3, 7, 14, 30 e 90 dias), até 20 respostas por dia e +2 XP por acerto (teto de 20 XP/dia).
-- **Lembrete diário**: notificação local (manhã, tarde ou noite) escolhida no onboarding ou no Perfil; o lembrete do dia é cancelado quando a meta já foi cumprida.
+- **Lembrete diário**: notificação local (manhã, tarde ou noite), sem servidor, escolhida no onboarding ou no Perfil. A permissão só é pedida nessa escolha; o lembrete do dia sai quando a meta ou o mínimo da ofensiva já foi feito, e sair da conta cancela todos.
 - **PDFs privados**: envio de livros e documentos em PDF pelo usuário, processados em capítulos privados.
 - **Notícias**: agregação periódica de artigos de fontes em inglês simples (VOA Learning English e Wikinews — ambas as fontes estão congeladas/modo arquivo).
 - **Estatísticas no Perfil**: visão geral de palavras lidas, ofensiva, tempo de leitura e vocabulário acumulado.
@@ -79,36 +79,75 @@ DATABASE_URL=postgresql+psycopg://readup:<senha>@127.0.0.1:5433/readup uv run al
 
 ## Mobile
 
-O aplicativo mobile utiliza Expo SDK 57 com Expo Router e TypeScript.
+App em **Flutter** (Dart) com `flutter_bloc`, Clean Architecture organizada por feature
+(`lib/features/<feature>/{domain,presentation}`), `core/` (HTTP, exceções, rotas, storage) e
+`design_system/` (cores, tipografia, espaços, tema Material 3, motion).
 
-### Configuração
+Regras do projeto:
 
-1. Crie o arquivo de ambiente:
-   ```sh
-   cp mobile/.env.example mobile/.env
-   ```
-2. Defina `EXPO_PUBLIC_API_URL` com o IP da sua máquina na rede local (LAN), por exemplo:
-   ```env
-   EXPO_PUBLIC_API_URL=http://192.168.0.10:8000
-   ```
-   > **Nota:** Não utilize `localhost`, pois no celular físico ou emulador ele apontará para o próprio aparelho. Se o roteador reiniciar e o IP da sua máquina mudar, atualize o `mobile/.env` e reinicie o bundler limpando o cache: `npx expo start -c`.
+- Tela → BLoC → Repositório: telas nunca chamam repositórios.
+- Repositórios usam só o `HttpHelper` (nunca `package:http` direto) e envolvem tudo em
+  `repositoryExceptionHandlerScope`, que entrega `RequestFailure` ao BLoC.
+- Texto pelo `Theme.of(context).textTheme`; estilos de leitura por `context.readupText`.
+- Widgets auxiliares são classes próprias (nada de `_buildX()` que devolve widget).
+- Dependências por construtor (`RepositoryProvider`/`BlocProvider` na raiz), sem singletons:
+  nos testes, tudo vira mock pelo `wrapApp` de `test/fakes/harness.dart`.
+
+```text
+lib/
+├── core/           # HttpHelper, exceções, rotas, extensões, serviços do aparelho (voz, PDF, lembretes)
+├── design_system/  # cores, tipografia, espaços, motion e tema
+├── shared/         # modelos, repositórios e widgets usados por mais de uma feature
+└── features/       # auth, onboarding, home, home_tabs, read, reader, vocabulary, review, profile
+```
 
 ### Execução
 
+A URL da API vai por `--dart-define`. No emulador Android, `10.0.2.2` é o seu computador (padrão do
+entrypoint de dev); no celular físico, use o IP da máquina na rede local.
+
 ```sh
 cd mobile
-npm install
-npx expo start
+flutter pub get
+flutter run -t lib/main_dev.dart --dart-define=API_URL=http://192.168.0.10:8000
 ```
 
-Abra o aplicativo **Expo Go** no celular e escaneie o QR code gerado no terminal. O celular e o computador devem estar na **mesma rede Wi-Fi**.
+Build de produção: `flutter build apk -t lib/main_prod.dart --dart-define=API_URL=https://...`
+(o build Android pede Java 17+). Sem as variáveis `ANDROID_KEYSTORE_*` (abaixo), o release é
+assinado com a chave de debug.
+
+### APK pelo GitHub Actions
+
+O workflow `Android` (`.github/workflows/android.yml`) gera um APK de release a cada PR para
+`master` ou `homolog` que mexa em `mobile/` e comenta o link de download no PR. O merge cria uma
+Release com o APK: `vX.Y.Z-N` na `master` e pré-release `homolog-vX.Y.Z-N` na `homolog`.
+
+Configuração (uma vez, em *Settings* do repositório):
+
+1. *Environments*: crie `production` e `homolog`, cada um com a variável `API_URL`. Em `production`,
+   só HTTPS; em `homolog` vale `http://` (ex.: a API na rede local, `http://192.168.1.22:8000`), e
+   só o APK de homolog aceita HTTP.
+2. Chave de assinatura, para cada APK novo instalar por cima do anterior (sem ela, é preciso
+   desinstalar antes):
+
+   ```sh
+   keytool -genkey -v -keystore readup-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias readup
+   base64 -w0 readup-release.jks   # vira o secret ANDROID_KEYSTORE_BASE64
+   ```
+
+   *Secrets and variables → Actions*: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+   `ANDROID_KEY_ALIAS` (`readup`) e `ANDROID_KEY_PASSWORD`. Guarde o `.jks` fora do repositório e
+   com backup: sem ele, nenhuma versão futura atualiza o app instalado (nem na loja).
+
+HTTP sem TLS só é aceito no build de debug e no APK de homolog do Android (placeholder
+`usesCleartextTraffic` em `android/app/build.gradle.kts`) e, no iOS, só para a rede local;
+produção usa HTTPS.
 
 ### Testes e validações do mobile
 
 ```sh
 cd mobile
-npx tsc --noEmit
-npx expo lint
-npm test
-npx expo-doctor
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
 ```

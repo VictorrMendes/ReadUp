@@ -17,3 +17,5 @@ CLAUDE.md
 skills-lock.json
 .ai-memory.toml
 .maestri
+# ajustes locais do compose (ex.: porta só em loopback no servidor)
+docker-compose.override.yml
