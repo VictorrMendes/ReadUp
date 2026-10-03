@@ -3,6 +3,8 @@ import 'package:readup/features/read/domain/models/book.dart';
 import 'package:readup/features/reader/domain/models/article_detail.dart';
 import 'package:readup/features/reader/domain/models/progress_result.dart';
 import 'package:readup/shared/domain/models/achievement.dart';
+import 'package:readup/shared/domain/models/review.dart';
+import 'package:readup/shared/domain/models/vocabulary.dart';
 import 'package:readup/shared/domain/models/article_summary.dart';
 import 'package:readup/shared/domain/models/stats.dart';
 import 'package:readup/shared/domain/constants/levels.dart';
@@ -156,3 +158,31 @@ ProgressResult progressResult({
   streak: 4,
   streakActiveToday: active,
 );
+
+const cardHouse = ReviewCard(
+  id: 1,
+  word: 'house',
+  translation: 'casa',
+  context: 'The house is big.',
+);
+const cardTree = ReviewCard(id: 2, word: 'tree', translation: 'árvore', context: null);
+const queueTwo = ReviewQueue(cards: [cardHouse, cardTree], reviewedToday: 0, dailyLimit: 20);
+
+const savedWords = [
+  SavedWord(
+    id: 1,
+    word: 'house',
+    translation: 'casa',
+    context: 'The house is big.',
+    articleId: 10,
+    articleTitle: 'My Morning',
+  ),
+  SavedWord(
+    id: 2,
+    word: 'tree',
+    translation: null,
+    context: null,
+    articleId: null,
+    articleTitle: null,
+  ),
+];

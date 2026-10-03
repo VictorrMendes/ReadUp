@@ -9,6 +9,9 @@ import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../home/presentation/blocs/home_bloc.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 import '../../../read/presentation/screens/read_screen.dart';
+import '../../../vocabulary/presentation/cubits/vocabulary_cubit.dart';
+import '../../../vocabulary/presentation/screens/vocabulary_screen.dart';
+import '../../../../shared/domain/repositories/vocabulary_repository.dart';
 import '../cubits/home_tabs_cubit.dart';
 import '../widgets/bouncy_tab_icon.dart';
 
@@ -31,6 +34,9 @@ class HomeTabsScreen extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => HomeTabsCubit()),
         BlocProvider(
+          create: (context) => VocabularyCubit(vocabulary: context.read<VocabularyRepository>()),
+        ),
+        BlocProvider(
           create: (context) => HomeBloc(
             stats: context.read<StatsRepository>(),
             articles: context.read<ArticlesRepository>(),
@@ -38,17 +44,25 @@ class HomeTabsScreen extends StatelessWidget {
         ),
       ],
       child: BlocConsumer<HomeTabsCubit, HomeTab>(
-        listenWhen: (previous, current) => current == HomeTab.home && previous != current,
-        listener: (context, _) =>
-            context.read<HomeBloc>().add(HomeLoadRequested(level: user.englishLevel)),
+        listenWhen: (previous, current) => previous != current,
+        // ao entrar na aba: Início e Vocabulário mostram o que mudou (leitura, palavras salvas)
+        listener: (context, tab) => switch (tab) {
+          HomeTab.home => context.read<HomeBloc>().add(HomeLoadRequested(level: user.englishLevel)),
+          HomeTab.vocabulary => context.read<VocabularyCubit>().load(),
+          _ => null,
+        },
         builder: (context, tab) => Scaffold(
           body: IndexedStack(
             index: tab.index,
             children: [
-              HomeScreen(user: user),
-              ReadScreen(level: user.englishLevel),
-              const _ComingSoon(title: 'Vocabulário', phase: 5),
-              const _ComingSoon(title: 'Perfil', phase: 6, showSignOut: true),
+              for (final (i, page) in <Widget>[
+                HomeScreen(user: user),
+                ReadScreen(level: user.englishLevel),
+                const VocabularyScreen(),
+                const _ComingSoon(title: 'Perfil', phase: 6, showSignOut: true),
+              ].indexed)
+                // abas fora da tela não animam (esqueleto pulsando escondido gastaria bateria)
+                TickerMode(enabled: i == tab.index, child: page),
             ],
           ),
           bottomNavigationBar: NavigationBar(

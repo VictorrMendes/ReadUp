@@ -5,4 +5,7 @@ abstract final class RoutesPath {
 
   /// livro importado; argumento: id do livro (int)
   static const book = '/book';
+
+  /// revisão espaçada das palavras salvas
+  static const review = '/review';
 }

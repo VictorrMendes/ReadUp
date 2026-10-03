@@ -1,4 +1,5 @@
 import '../../../core/core.dart';
+import '../models/review.dart';
 import '../models/vocabulary.dart';
 
 /// Palavras: tradução, salvar/remover e tradução de frase.
@@ -32,6 +33,19 @@ class VocabularyRepository {
         SavedWord.fromJson(item! as Map<String, Object?>),
     ];
   });
+
+  Future<ReviewQueue> reviewQueue() => repositoryExceptionHandlerScope(
+    () async => ReviewQueue.fromJson(
+      (await _httpHelper.get('/vocabulary/review'))! as Map<String, Object?>,
+    ),
+  );
+
+  /// Resposta da revisão; devolve o XP ganho (409: já respondida ou limite do dia).
+  Future<int> answerReview(int id, {required bool known}) =>
+      repositoryExceptionHandlerScope(() async {
+        final response = await _httpHelper.post('/vocabulary/$id/review', body: {'known': known});
+        return (response! as Map<String, Object?>)['xp_gained']! as int;
+      });
 
   Future<void> delete(int id) =>
       repositoryExceptionHandlerScope(() => _httpHelper.delete('/vocabulary/$id'));

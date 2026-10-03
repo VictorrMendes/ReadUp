@@ -41,7 +41,9 @@ class ProgressBar extends StatelessWidget {
       value: '${(fraction * 100).round()}%',
       child: ClipRRect(
         borderRadius: radius,
+        // ocupa a largura disponível (no título do AppBar a largura é livre e ela sumiria)
         child: SizedBox(
+          width: double.infinity,
           height: size.height,
           child: ColoredBox(
             color: trackColor,
