@@ -7,7 +7,11 @@ import 'design_system/themes.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
 import 'features/auth/presentation/screens/auth_gate.dart';
+import 'core/services/speech.dart';
 import 'features/read/domain/repositories/books_repository.dart';
+import 'features/reader/domain/repositories/reading_repository.dart';
+import 'features/reader/presentation/cubits/reader_settings_cubit.dart';
+import 'shared/domain/repositories/vocabulary_repository.dart';
 import 'shared/domain/repositories/articles_repository.dart';
 import 'shared/domain/repositories/preferences_repository.dart';
 import 'shared/domain/repositories/stats_repository.dart';
@@ -23,7 +27,11 @@ class ReadUpApp extends StatelessWidget {
     required this.statsRepository,
     required this.articlesRepository,
     required this.booksRepository,
+    required this.readingRepository,
+    required this.vocabularyRepository,
+    required this.speech,
     required this.streakVisibility,
+    required this.readerSettings,
   });
 
   final AuthBloc authBloc;
@@ -32,6 +40,10 @@ class ReadUpApp extends StatelessWidget {
   final StatsRepository statsRepository;
   final ArticlesRepository articlesRepository;
   final BooksRepository booksRepository;
+  final ReadingRepository readingRepository;
+  final VocabularyRepository vocabularyRepository;
+  final Speech speech;
+  final ReaderSettingsCubit readerSettings;
   final StreakVisibilityCubit streakVisibility;
 
   @override
@@ -43,11 +55,15 @@ class ReadUpApp extends StatelessWidget {
         RepositoryProvider.value(value: statsRepository),
         RepositoryProvider.value(value: articlesRepository),
         RepositoryProvider.value(value: booksRepository),
+        RepositoryProvider.value(value: readingRepository),
+        RepositoryProvider.value(value: vocabularyRepository),
+        RepositoryProvider.value(value: speech),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider.value(value: authBloc),
           BlocProvider.value(value: streakVisibility),
+          BlocProvider.value(value: readerSettings),
         ],
         child: MaterialApp(
           title: 'ReadUp',

@@ -10,7 +10,11 @@ import 'build_config.dart';
 import 'core/core.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
+import 'core/services/speech.dart';
 import 'features/read/domain/repositories/books_repository.dart';
+import 'features/reader/domain/repositories/reading_repository.dart';
+import 'features/reader/presentation/cubits/reader_settings_cubit.dart';
+import 'shared/domain/repositories/vocabulary_repository.dart';
 import 'shared/domain/repositories/articles_repository.dart';
 import 'shared/domain/repositories/preferences_repository.dart';
 import 'shared/domain/repositories/stats_repository.dart';
@@ -35,6 +39,8 @@ Future<void> runReadUp(BuildConfig config) async {
   authBloc = AuthBloc(repository: authRepository)..add(const AuthStarted());
   final streakVisibility = StreakVisibilityCubit();
   unawaited(streakVisibility.load());
+  final readerSettings = ReaderSettingsCubit();
+  unawaited(readerSettings.load());
 
   runApp(
     ReadUpApp(
@@ -44,6 +50,10 @@ Future<void> runReadUp(BuildConfig config) async {
       statsRepository: StatsRepository(httpHelper: httpHelper),
       articlesRepository: ArticlesRepository(httpHelper: httpHelper),
       booksRepository: BooksRepository(httpHelper: httpHelper),
+      readingRepository: ReadingRepository(httpHelper: httpHelper),
+      vocabularyRepository: VocabularyRepository(httpHelper: httpHelper),
+      speech: DeviceSpeech(),
+      readerSettings: readerSettings,
       streakVisibility: streakVisibility,
     ),
   );

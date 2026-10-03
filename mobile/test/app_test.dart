@@ -21,6 +21,10 @@ void main() {
         statsRepository: MockStatsRepository(),
         articlesRepository: MockArticlesRepository(),
         booksRepository: MockBooksRepository(),
+        readingRepository: MockReadingRepository(),
+        vocabularyRepository: MockVocabularyRepository(),
+        speech: MockSpeech(),
+        readerSettings: MockReaderSettingsCubit(),
         streakVisibility: MockStreakVisibilityCubit(),
       ),
     );

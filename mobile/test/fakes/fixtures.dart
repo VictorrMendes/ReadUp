@@ -1,5 +1,7 @@
 import 'package:readup/features/auth/domain/models/user.dart';
 import 'package:readup/features/read/domain/models/book.dart';
+import 'package:readup/features/reader/domain/models/article_detail.dart';
+import 'package:readup/features/reader/domain/models/progress_result.dart';
 import 'package:readup/shared/domain/models/achievement.dart';
 import 'package:readup/shared/domain/models/article_summary.dart';
 import 'package:readup/shared/domain/models/stats.dart';
@@ -127,4 +129,30 @@ final bookDetail = BookDetail.fromJson(
       chapterJson(102, 2, progress: 30),
     ],
   ),
+);
+
+ArticleDetail articleDetail({int progress = 0, bool completed = false, int? bookId}) =>
+    ArticleDetail.fromJson({
+      ...articleJson(progress: progress, completed: completed),
+      'book_id': bookId,
+      'content': 'The house is big. It has a garden.\n\nMr. Smith lives there.',
+      'next_article_id': null,
+      'source_url': null,
+      'attribution': null,
+    });
+
+ProgressResult progressResult({
+  bool completed = false,
+  int words = 0,
+  int xp = 0,
+  bool active = false,
+}) => ProgressResult(
+  progress: completed ? 100 : 0,
+  wordsRead: completed ? 640 : 100,
+  wordsCredited: words,
+  completed: completed,
+  xpGained: xp,
+  goalMet: false,
+  streak: 4,
+  streakActiveToday: active,
 );
