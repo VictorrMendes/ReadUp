@@ -92,7 +92,7 @@ class LocalReminders implements Reminders {
     tz.setLocalLocation(tz.getLocation((await FlutterTimezone.getLocalTimezone()).identifier));
     await _plugin.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('ic_notification'),
         // a permissão é pedida na escolha do horário, não ao abrir o app
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,

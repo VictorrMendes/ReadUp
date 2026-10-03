@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- coberto pela arte; aparece só se o launcher deslocar o primeiro plano -->
+    <color name="ic_launcher_background">#3B3A98</color>
+</resources>

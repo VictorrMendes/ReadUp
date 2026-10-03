@@ -21,7 +21,7 @@ readup/
 - **Conquistas (achievements)**: medalhas desbloqueadas automaticamente por marcos de leitura, ofensiva e vocabulário.
 - **Vocabulário com tradução**: consulta instantânea de palavras via MyMemory com cache global e lista pessoal de palavras salvas.
 - **Revisão espaçada**: palavras salvas voltam em cartões (caixas de Leitner: 1, 3, 7, 14, 30 e 90 dias), até 20 respostas por dia e +2 XP por acerto (teto de 20 XP/dia).
-- **Lembrete diário**: notificação local (manhã, tarde ou noite) escolhida no onboarding ou no Perfil; o lembrete do dia é cancelado quando a meta já foi cumprida.
+- **Lembrete diário**: notificação local (manhã, tarde ou noite), sem servidor, escolhida no onboarding ou no Perfil. A permissão só é pedida nessa escolha; o lembrete do dia sai quando a meta ou o mínimo da ofensiva já foi feito, e sair da conta cancela todos.
 - **PDFs privados**: envio de livros e documentos em PDF pelo usuário, processados em capítulos privados.
 - **Notícias**: agregação periódica de artigos de fontes em inglês simples (VOA Learning English e Wikinews — ambas as fontes estão congeladas/modo arquivo).
 - **Estatísticas no Perfil**: visão geral de palavras lidas, ofensiva, tempo de leitura e vocabulário acumulado.
@@ -90,6 +90,16 @@ Regras do projeto:
   `repositoryExceptionHandlerScope`, que entrega `RequestFailure` ao BLoC.
 - Texto pelo `Theme.of(context).textTheme`; estilos de leitura por `context.readupText`.
 - Widgets auxiliares são classes próprias (nada de `_buildX()` que devolve widget).
+- Dependências por construtor (`RepositoryProvider`/`BlocProvider` na raiz), sem singletons:
+  nos testes, tudo vira mock pelo `wrapApp` de `test/fakes/harness.dart`.
+
+```text
+lib/
+├── core/           # HttpHelper, exceções, rotas, extensões, serviços do aparelho (voz, PDF, lembretes)
+├── design_system/  # cores, tipografia, espaços, motion e tema
+├── shared/         # modelos, repositórios e widgets usados por mais de uma feature
+└── features/       # auth, onboarding, home, home_tabs, read, reader, vocabulary, review, profile
+```
 
 ### Execução
 
@@ -103,7 +113,11 @@ flutter run -t lib/main_dev.dart --dart-define=API_URL=http://192.168.0.10:8000
 ```
 
 Build de produção: `flutter build apk -t lib/main_prod.dart --dart-define=API_URL=https://...`
-(o build Android pede Java 17+).
+(o build Android pede Java 17+). O release ainda é assinado com a chave de debug do Flutter:
+antes de publicar na loja, configure uma chave própria em `android/app/build.gradle.kts`.
+
+HTTP sem TLS só é aceito no build de debug do Android (`src/debug/AndroidManifest.xml`) e, no iOS,
+só para a rede local; produção usa HTTPS.
 
 ### Testes e validações do mobile
 
