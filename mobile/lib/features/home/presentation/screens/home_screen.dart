@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/core.dart';
+import '../../../../core/services/reminders.dart';
 import '../../../../core/routes/routes_path.dart';
 import '../../../../design_system/readup_colors.dart';
 import '../../../../design_system/spaces.dart';
@@ -39,6 +42,19 @@ class HomeScreen extends StatelessWidget {
     if (context.mounted) context.read<HomeBloc>().add(HomeLoadRequested(level: user.englishLevel));
   }
 
+  /// Reagenda os lembretes: hoje sai da lista se o dia já está garantido; a ofensiva só aparece
+  /// no texto se estiver visível.
+  void _syncReminders(BuildContext context, HomeData data) {
+    final summary = data.summary;
+    final hidden = context.read<StreakVisibilityCubit>().state ?? false;
+    unawaited(
+      context.read<Reminders>().sync(
+        doneToday: data.goal.completed || (summary?.streakActiveToday ?? false),
+        streak: hidden ? 0 : summary?.streakCurrent ?? 0,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
@@ -46,52 +62,56 @@ class HomeScreen extends StatelessWidget {
     final state = context.watch<HomeBloc>().state;
     final data = state is HomeLoaded ? state.data : null;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      // ícones claros da barra de status sobre a arte índigo
-      value: SystemUiOverlayStyle.light,
-      child: Scaffold(
-        body: RefreshIndicator(
-          onRefresh: () => _reload(context),
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: Spaces.xxl),
-            children: [
-              Stack(
-                children: [
-                  Image.asset(
-                    'assets/images/home-hero.png',
-                    width: width,
-                    height: heroHeight,
-                    fit: BoxFit.cover,
-                    excludeFromSemantics: true,
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      HomeHero(
-                        name: user.name,
-                        minHeight: heroHeight - _cardOverlap,
-                        xp: data?.summary?.xpTotal,
-                        message: data == null ? null : heroMessage(data.goal),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: Spaces.xl),
-                        child: switch (state) {
-                          HomeLoading() => const _HomeSkeleton(),
-                          HomeFailure(:final message) => _HomeError(
-                            message: message,
-                            onRetry: () => _reload(context),
-                          ),
-                          HomeLoaded(:final data) => _HomeContent(
-                            data: data,
-                            onOpenArticle: (id) => _openArticle(context, id),
-                          ),
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+    return BlocListener<HomeBloc, HomeState>(
+      listenWhen: (_, current) => current is HomeLoaded,
+      listener: (context, state) => _syncReminders(context, (state as HomeLoaded).data),
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        // ícones claros da barra de status sobre a arte índigo
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          body: RefreshIndicator(
+            onRefresh: () => _reload(context),
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: Spaces.xxl),
+              children: [
+                Stack(
+                  children: [
+                    Image.asset(
+                      'assets/images/home-hero.png',
+                      width: width,
+                      height: heroHeight,
+                      fit: BoxFit.cover,
+                      excludeFromSemantics: true,
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        HomeHero(
+                          name: user.name,
+                          minHeight: heroHeight - _cardOverlap,
+                          xp: data?.summary?.xpTotal,
+                          message: data == null ? null : heroMessage(data.goal),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: Spaces.xl),
+                          child: switch (state) {
+                            HomeLoading() => const _HomeSkeleton(),
+                            HomeFailure(:final message) => _HomeError(
+                              message: message,
+                              onRetry: () => _reload(context),
+                            ),
+                            HomeLoaded(:final data) => _HomeContent(
+                              data: data,
+                              onOpenArticle: (id) => _openArticle(context, id),
+                            ),
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

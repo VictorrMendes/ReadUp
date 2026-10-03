@@ -10,6 +10,7 @@ import 'build_config.dart';
 import 'core/core.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
+import 'core/services/reminders.dart';
 import 'core/services/speech.dart';
 import 'features/read/domain/repositories/books_repository.dart';
 import 'features/reader/domain/repositories/reading_repository.dart';
@@ -53,6 +54,7 @@ Future<void> runReadUp(BuildConfig config) async {
       readingRepository: ReadingRepository(httpHelper: httpHelper),
       vocabularyRepository: VocabularyRepository(httpHelper: httpHelper),
       speech: DeviceSpeech(),
+      reminders: LocalReminders(),
       readerSettings: readerSettings,
       streakVisibility: streakVisibility,
     ),

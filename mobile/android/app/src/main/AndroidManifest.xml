@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- a API: sem isto o APK de produção não acessa a rede (o Flutter só declara no debug) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="readup"
+        android:label="ReadUp"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -30,6 +32,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- lembrete diário agendado (flutter_local_notifications). Sem receptor de boot: o app
+             reagenda os próximos 7 dias toda vez que o Início abre -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

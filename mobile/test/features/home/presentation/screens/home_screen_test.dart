@@ -34,7 +34,11 @@ void main() {
     when(() => articles.list(level: any(named: 'level'))).thenAnswer((_) async => feed);
   }
 
-  Future<void> pumpHome(WidgetTester tester, {bool streakHidden = false}) async {
+  Future<void> pumpHome(
+    WidgetTester tester, {
+    bool streakHidden = false,
+    MockReminders? reminders,
+  }) async {
     // celular alto: o Início inteiro cabe na tela (toques e semântica alcançam todos os cartões)
     tester.view.physicalSize = const Size(1080, 4000);
     tester.view.devicePixelRatio = 3;
@@ -45,10 +49,21 @@ void main() {
         stats: stats,
         articles: articles,
         streakHidden: streakHidden,
+        reminders: reminders,
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('dados chegam: reagenda os lembretes (dia garantido, ofensiva só se visível)', (
+    tester,
+  ) async {
+    stub(summary: summaryWith(streak: 4, active: true));
+    final reminders = quietReminders();
+    await pumpHome(tester, reminders: reminders, streakHidden: true);
+
+    verify(() => reminders.sync(doneToday: true, streak: 0)).called(1);
+  });
 
   testWidgets('meta aberta, ofensiva, próxima conquista e continuar lendo', (tester) async {
     stub(reading: article(progress: 40));

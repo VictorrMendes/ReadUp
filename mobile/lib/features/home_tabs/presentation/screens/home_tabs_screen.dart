@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/core.dart';
+import '../../../../core/services/reminders.dart';
 import '../../../../shared/domain/repositories/articles_repository.dart';
+import '../../../../shared/domain/repositories/preferences_repository.dart';
 import '../../../../shared/domain/repositories/stats_repository.dart';
 import '../../../auth/domain/models/user.dart';
-import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../home/presentation/blocs/home_bloc.dart';
 import '../../../home/presentation/screens/home_screen.dart';
+import '../../../profile/presentation/cubits/profile_cubit.dart';
+import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../read/presentation/screens/read_screen.dart';
 import '../../../vocabulary/presentation/cubits/vocabulary_cubit.dart';
 import '../../../vocabulary/presentation/screens/vocabulary_screen.dart';
@@ -42,14 +45,22 @@ class HomeTabsScreen extends StatelessWidget {
             articles: context.read<ArticlesRepository>(),
           )..add(HomeLoadRequested(level: user.englishLevel)),
         ),
+        BlocProvider(
+          create: (context) => ProfileCubit(
+            stats: context.read<StatsRepository>(),
+            preferences: context.read<PreferencesRepository>(),
+            reminders: context.read<Reminders>(),
+          )..load(),
+        ),
       ],
       child: BlocConsumer<HomeTabsCubit, HomeTab>(
         listenWhen: (previous, current) => previous != current,
-        // ao entrar na aba: Início e Vocabulário mostram o que mudou (leitura, palavras salvas)
+        // ao entrar na aba: Início, Vocabulário e Perfil mostram o que mudou
         listener: (context, tab) => switch (tab) {
           HomeTab.home => context.read<HomeBloc>().add(HomeLoadRequested(level: user.englishLevel)),
           HomeTab.vocabulary => context.read<VocabularyCubit>().load(),
-          _ => null,
+          HomeTab.profile => context.read<ProfileCubit>().load(),
+          HomeTab.read => null,
         },
         builder: (context, tab) => Scaffold(
           body: IndexedStack(
@@ -59,7 +70,7 @@ class HomeTabsScreen extends StatelessWidget {
                 HomeScreen(user: user),
                 ReadScreen(level: user.englishLevel),
                 const VocabularyScreen(),
-                const _ComingSoon(title: 'Perfil', phase: 6, showSignOut: true),
+                ProfileScreen(user: user),
               ].indexed)
                 // abas fora da tela não animam (esqueleto pulsando escondido gastaria bateria)
                 TickerMode(enabled: i == tab.index, child: page),
@@ -80,35 +91,6 @@ class HomeTabsScreen extends StatelessWidget {
                 ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ponytail: abas provisórias até as fases 3 (Ler), 5 (Vocabulário) e 6 (Perfil).
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon({required this.title, required this.phase, this.showSignOut = false});
-
-  final String title;
-  final int phase;
-  final bool showSignOut;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('$title chega na fase $phase.'),
-            if (showSignOut)
-              TextButton(
-                onPressed: () => context.read<AuthBloc>().add(const LogoutRequested()),
-                child: const Text('Sair'),
-              ),
-          ],
         ),
       ),
     );

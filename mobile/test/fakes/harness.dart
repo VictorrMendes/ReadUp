@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:readup/design_system/themes.dart';
 import 'package:readup/features/auth/presentation/blocs/auth_bloc.dart';
+import 'package:readup/core/services/reminders.dart';
 import 'package:readup/core/services/speech.dart';
 import 'package:readup/features/read/domain/repositories/books_repository.dart';
 import 'package:readup/features/reader/domain/models/reader_settings.dart';
@@ -29,6 +30,7 @@ Widget wrapApp(
   ReadingRepository? reading,
   VocabularyRepository? vocabulary,
   Speech? speech,
+  Reminders? reminders,
   ReaderSettings readerSettings = const ReaderSettings(),
   bool? streakHidden = false,
   Map<String, WidgetBuilder> routes = const {},
@@ -46,6 +48,7 @@ Widget wrapApp(
         value: vocabulary ?? MockVocabularyRepository(),
       ),
       RepositoryProvider<Speech>.value(value: speech ?? MockSpeech()),
+      RepositoryProvider<Reminders>.value(value: reminders ?? quietReminders()),
       RepositoryProvider<BooksRepository>.value(value: books ?? _pendingBooks()),
       RepositoryProvider<PreferencesRepository>.value(
         value: preferences ?? MockPreferencesRepository(),
@@ -60,6 +63,22 @@ Widget wrapApp(
       child: MaterialApp(theme: mainTheme, home: home, routes: routes),
     ),
   );
+}
+
+/// Lembretes que aceitam tudo (noite, permissão concedida) e não agendam nada.
+MockReminders quietReminders() {
+  registerFallbackValue(ReminderTime.off);
+  final reminders = MockReminders();
+  when(reminders.current).thenAnswer((_) async => ReminderTime.evening);
+  when(() => reminders.set(any())).thenAnswer((_) async => true);
+  when(
+    () => reminders.sync(
+      doneToday: any(named: 'doneToday'),
+      streak: any(named: 'streak'),
+    ),
+  ).thenAnswer((_) async {});
+  when(reminders.cancelAll).thenAnswer((_) async {});
+  return reminders;
 }
 
 // chamadas que nunca terminam: a tela fica no carregamento (testes que não olham os dados)
