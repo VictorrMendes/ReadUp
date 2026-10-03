@@ -1,7 +1,7 @@
 name: Android
 
 # APK instalável: todo PR para master/homolog gera um (link comentado no PR) e o merge vira Release.
-# A API vem da variável API_URL do Environment: "production" (master) ou "homolog" (homolog).
+# A API vem da variável API_URL do Environment: "production" (master, https) ou "homolog" (homolog).
 on:
   pull_request:
     branches: [master, homolog]
@@ -40,13 +40,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # produção só com https; homolog aceita http:// (API na rede local) e libera HTTP no APK
       - name: Check API_URL
         env:
           API_URL: ${{ vars.API_URL }}
+          ENVIRONMENT: ${{ (github.base_ref || github.ref_name) == 'master' && 'production' || 'homolog' }}
         run: |
-          # o build de release do Android bloqueia HTTP sem TLS: o app abriria sem conectar
-          if [[ "$API_URL" != https://* ]]; then
-            echo "::error::Defina a variável API_URL (https://...) no Environment deste build."
+          if [[ "$API_URL" == https://* ]]; then
+            exit 0
+          elif [[ "$API_URL" == http://* && "$ENVIRONMENT" == homolog ]]; then
+            echo "ALLOW_HTTP=true" >> "$GITHUB_ENV"
+          else
+            echo "::error::Defina a variável API_URL no Environment $ENVIRONMENT (https://...; http:// só na homolog)."
             exit 1
           fi
 

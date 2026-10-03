@@ -29,6 +29,8 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // http:// só com a API na rede local: debug e o APK de homolog (ALLOW_HTTP=true no CI)
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
     }
 
     // chave de release pelo ambiente (CI: secrets ANDROID_*); sem ela, a de debug (flutter run --release)
@@ -45,7 +47,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
         release {
+            manifestPlaceholders["usesCleartextTraffic"] = (System.getenv("ALLOW_HTTP") == "true").toString()
             signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "debug")
         }
     }

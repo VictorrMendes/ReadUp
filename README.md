@@ -124,8 +124,9 @@ Release com o APK: `vX.Y.Z-N` na `master` e pré-release `homolog-vX.Y.Z-N` na `
 
 Configuração (uma vez, em *Settings* do repositório):
 
-1. *Environments*: crie `production` e `homolog`, cada um com a variável `API_URL` (a URL HTTPS da
-   API daquele ambiente; o Android bloqueia HTTP no build de release).
+1. *Environments*: crie `production` e `homolog`, cada um com a variável `API_URL`. Em `production`,
+   só HTTPS; em `homolog` vale `http://` (ex.: a API na rede local, `http://192.168.1.22:8000`), e
+   só o APK de homolog aceita HTTP.
 2. Chave de assinatura, para cada APK novo instalar por cima do anterior (sem ela, é preciso
    desinstalar antes):
 
@@ -138,8 +139,9 @@ Configuração (uma vez, em *Settings* do repositório):
    `ANDROID_KEY_ALIAS` (`readup`) e `ANDROID_KEY_PASSWORD`. Guarde o `.jks` fora do repositório e
    com backup: sem ele, nenhuma versão futura atualiza o app instalado (nem na loja).
 
-HTTP sem TLS só é aceito no build de debug do Android (`src/debug/AndroidManifest.xml`) e, no iOS,
-só para a rede local; produção usa HTTPS.
+HTTP sem TLS só é aceito no build de debug e no APK de homolog do Android (placeholder
+`usesCleartextTraffic` em `android/app/build.gradle.kts`) e, no iOS, só para a rede local;
+produção usa HTTPS.
 
 ### Testes e validações do mobile
 
