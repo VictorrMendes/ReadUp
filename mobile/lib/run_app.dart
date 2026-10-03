@@ -10,6 +10,7 @@ import 'build_config.dart';
 import 'core/core.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
+import 'features/read/domain/repositories/books_repository.dart';
 import 'shared/domain/repositories/articles_repository.dart';
 import 'shared/domain/repositories/preferences_repository.dart';
 import 'shared/domain/repositories/stats_repository.dart';
@@ -42,6 +43,7 @@ Future<void> runReadUp(BuildConfig config) async {
       preferencesRepository: PreferencesRepository(httpHelper: httpHelper),
       statsRepository: StatsRepository(httpHelper: httpHelper),
       articlesRepository: ArticlesRepository(httpHelper: httpHelper),
+      booksRepository: BooksRepository(httpHelper: httpHelper),
       streakVisibility: streakVisibility,
     ),
   );

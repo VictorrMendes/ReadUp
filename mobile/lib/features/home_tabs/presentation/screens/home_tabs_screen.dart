@@ -8,6 +8,7 @@ import '../../../auth/domain/models/user.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../home/presentation/blocs/home_bloc.dart';
 import '../../../home/presentation/screens/home_screen.dart';
+import '../../../read/presentation/screens/read_screen.dart';
 import '../cubits/home_tabs_cubit.dart';
 import '../widgets/bouncy_tab_icon.dart';
 
@@ -45,7 +46,7 @@ class HomeTabsScreen extends StatelessWidget {
             index: tab.index,
             children: [
               HomeScreen(user: user),
-              const _ComingSoon(title: 'Ler', phase: 3),
+              ReadScreen(level: user.englishLevel),
               const _ComingSoon(title: 'Vocabulário', phase: 5),
               const _ComingSoon(title: 'Perfil', phase: 6, showSignOut: true),
             ],

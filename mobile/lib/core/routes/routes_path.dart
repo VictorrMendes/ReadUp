@@ -2,4 +2,7 @@
 abstract final class RoutesPath {
   /// leitor; argumento: id do texto (int)
   static const article = '/article';
+
+  /// livro importado; argumento: id do livro (int)
+  static const book = '/book';
 }

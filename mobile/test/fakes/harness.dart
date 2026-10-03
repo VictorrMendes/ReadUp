@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:readup/design_system/themes.dart';
 import 'package:readup/features/auth/presentation/blocs/auth_bloc.dart';
+import 'package:readup/features/read/domain/repositories/books_repository.dart';
 import 'package:readup/shared/domain/repositories/articles_repository.dart';
 import 'package:readup/shared/domain/repositories/preferences_repository.dart';
 import 'package:readup/shared/domain/repositories/stats_repository.dart';
@@ -19,6 +20,7 @@ Widget wrapApp(
   StatsRepository? stats,
   ArticlesRepository? articles,
   PreferencesRepository? preferences,
+  BooksRepository? books,
   bool? streakHidden = false,
   Map<String, WidgetBuilder> routes = const {},
 }) {
@@ -28,6 +30,7 @@ Widget wrapApp(
     providers: [
       RepositoryProvider<StatsRepository>.value(value: stats ?? _pendingStats()),
       RepositoryProvider<ArticlesRepository>.value(value: articles ?? _pendingArticles()),
+      RepositoryProvider<BooksRepository>.value(value: books ?? _pendingBooks()),
       RepositoryProvider<PreferencesRepository>.value(
         value: preferences ?? MockPreferencesRepository(),
       ),
@@ -52,8 +55,20 @@ StatsRepository _pendingStats() {
   return stats;
 }
 
+BooksRepository _pendingBooks() {
+  final books = MockBooksRepository();
+  when(() => books.list()).thenAnswer((_) => Completer<Never>().future);
+  return books;
+}
+
 ArticlesRepository _pendingArticles() {
   final articles = MockArticlesRepository();
   when(() => articles.continueReading()).thenAnswer((_) => Completer<Never>().future);
+  when(
+    () => articles.list(
+      level: any(named: 'level'),
+      category: any(named: 'category'),
+    ),
+  ).thenAnswer((_) => Completer<Never>().future);
   return articles;
 }

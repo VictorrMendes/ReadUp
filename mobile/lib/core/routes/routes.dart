@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../features/read/presentation/screens/book_screen.dart';
 import '../../features/reader/presentation/screens/article_screen.dart';
 import 'routes_path.dart';
 
@@ -9,5 +10,7 @@ abstract final class Routes {
   static final Map<String, WidgetBuilder> pages = {
     RoutesPath.article: (context) =>
         ArticleScreen(articleId: ModalRoute.of(context)!.settings.arguments! as int),
+    RoutesPath.book: (context) =>
+        BookScreen(bookId: ModalRoute.of(context)!.settings.arguments! as int),
   };
 }

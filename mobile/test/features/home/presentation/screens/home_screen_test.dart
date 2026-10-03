@@ -123,7 +123,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // a aba Ler está na frente (o Início fica fora da tela, no IndexedStack)
-    expect(find.text('Ler chega na fase 3.'), findsOneWidget);
+    expect(find.text('Para você'), findsOneWidget);
     expect(find.byType(HomeScreen), findsNothing);
   });
 

@@ -4,6 +4,7 @@ import '../../../core/core.dart';
 import '../../../design_system/readup_colors.dart';
 import '../../../design_system/spaces.dart';
 import '../../domain/models/article_summary.dart';
+import '../../domain/models/book_title.dart';
 import 'level_badge.dart';
 import 'pressable_scale.dart';
 import 'progress_bar.dart';
@@ -19,7 +20,8 @@ class ReadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = context.textTheme;
-    final kind = article.bookTitle ?? article.category;
+    // capítulo: o nome do livro diz mais que "Livro"
+    final kind = article.bookTitle != null ? cleanBookTitle(article.bookTitle!) : article.category;
     final source = article.category == ArticleSummary.newsCategory ? article.source : null;
     final minutes =
         '${article.estimatedMinutes} ${article.estimatedMinutes == 1 ? 'minuto' : 'minutos'}';
@@ -49,8 +51,13 @@ class ReadingCard extends StatelessWidget {
                     LevelBadge(label: level.code, highlighted: true),
                     const SizedBox(width: Spaces.sm),
                   ],
-                  Flexible(child: LevelBadge(label: kind)),
-                  const Spacer(),
+                  // a etiqueta encolhe se precisar; o check fica sempre no canto direito
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: LevelBadge(label: kind),
+                    ),
+                  ),
                   if (article.completed)
                     const Icon(Icons.check_circle, color: ReadUpColors.success600, size: 22),
                 ],

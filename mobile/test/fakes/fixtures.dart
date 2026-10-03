@@ -1,4 +1,5 @@
 import 'package:readup/features/auth/domain/models/user.dart';
+import 'package:readup/features/read/domain/models/book.dart';
 import 'package:readup/shared/domain/models/achievement.dart';
 import 'package:readup/shared/domain/models/article_summary.dart';
 import 'package:readup/shared/domain/models/stats.dart';
@@ -86,4 +87,44 @@ const achievementWords = Achievement(
   target: 1000,
   current: 320,
   unlocked: false,
+);
+
+Map<String, Object?> bookJson({
+  int id = 5,
+  int progress = 25,
+  List<Map<String, Object?>>? chapters,
+}) => {
+  'id': id,
+  'title': 'harry-potter-and-the-stone',
+  'page_count': 223,
+  'word_count': 77000,
+  'chapter_count': 2,
+  'words_read': 19250,
+  'progress': progress,
+  'created_at': '2026-10-01T12:00:00Z',
+  'chapters': ?chapters,
+};
+
+Map<String, Object?> chapterJson(
+  int id,
+  int position, {
+  bool completed = false,
+  int progress = 0,
+}) => {
+  'id': id,
+  'title': 'Chapter $position',
+  'position': position,
+  'word_count': 2500,
+  'estimated_minutes': 12,
+  'progress': progress,
+  'completed': completed,
+};
+
+final bookDetail = BookDetail.fromJson(
+  bookJson(
+    chapters: [
+      chapterJson(101, 1, completed: true, progress: 100),
+      chapterJson(102, 2, progress: 30),
+    ],
+  ),
 );

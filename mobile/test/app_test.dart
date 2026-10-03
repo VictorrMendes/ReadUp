@@ -20,6 +20,7 @@ void main() {
         preferencesRepository: MockPreferencesRepository(),
         statsRepository: MockStatsRepository(),
         articlesRepository: MockArticlesRepository(),
+        booksRepository: MockBooksRepository(),
         streakVisibility: MockStreakVisibilityCubit(),
       ),
     );
