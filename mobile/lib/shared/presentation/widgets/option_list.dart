@@ -62,6 +62,7 @@ class _OptionTile<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = context.textTheme;
     return Semantics(
+      container: true,
       inMutuallyExclusiveGroup: true,
       checked: selected,
       label: '${option.label}, ${option.description}',

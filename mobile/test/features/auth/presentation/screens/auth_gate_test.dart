@@ -1,14 +1,12 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:readup/design_system/themes.dart';
 import 'package:readup/features/auth/presentation/blocs/auth_bloc.dart';
 import 'package:readup/features/auth/presentation/screens/auth_gate.dart';
-import 'package:readup/shared/domain/repositories/preferences_repository.dart';
 
 import '../../../../fakes/fixtures.dart';
+import '../../../../fakes/harness.dart';
 import '../../../../fakes/mocks.dart';
 
 void main() {
@@ -19,15 +17,7 @@ void main() {
 
   Future<void> pumpGate(WidgetTester tester, AuthState state) async {
     when(() => bloc.state).thenReturn(state);
-    await tester.pumpWidget(
-      RepositoryProvider<PreferencesRepository>.value(
-        value: MockPreferencesRepository(),
-        child: BlocProvider<AuthBloc>.value(
-          value: bloc,
-          child: MaterialApp(theme: mainTheme, home: const AuthGate()),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrapApp(const AuthGate(), authBloc: bloc));
   }
 
   testWidgets('lendo o token: abertura', (tester) async {
@@ -75,15 +65,7 @@ void main() {
       Stream.fromIterable([const AuthFailure('E-mail ou senha incorretos')]),
       initialState: const AuthUnauthenticated(),
     );
-    await tester.pumpWidget(
-      RepositoryProvider<PreferencesRepository>.value(
-        value: MockPreferencesRepository(),
-        child: BlocProvider<AuthBloc>.value(
-          value: bloc,
-          child: MaterialApp(theme: mainTheme, home: const AuthGate()),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrapApp(const AuthGate(), authBloc: bloc));
     await tester.pump();
     expect(find.text('E-mail ou senha incorretos'), findsNothing);
 
@@ -99,9 +81,10 @@ void main() {
     expect(find.text('Vamos começar'), findsOneWidget);
   });
 
-  testWidgets('conta com nível e meta: Início', (tester) async {
+  testWidgets('conta com nível e meta: abas, começando no Início', (tester) async {
     await pumpGate(tester, const AuthAuthenticated(onboardedUser));
     expect(find.text('Olá, Ana'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
   });
 
   testWidgets('usuário não carregou: tentar novamente', (tester) async {

@@ -18,6 +18,9 @@ void main() {
         authBloc: bloc,
         authRepository: MockAuthRepository(),
         preferencesRepository: MockPreferencesRepository(),
+        statsRepository: MockStatsRepository(),
+        articlesRepository: MockArticlesRepository(),
+        streakVisibility: MockStreakVisibilityCubit(),
       ),
     );
 

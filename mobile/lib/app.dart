@@ -7,7 +7,10 @@ import 'design_system/themes.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
 import 'features/auth/presentation/screens/auth_gate.dart';
+import 'shared/domain/repositories/articles_repository.dart';
 import 'shared/domain/repositories/preferences_repository.dart';
+import 'shared/domain/repositories/stats_repository.dart';
+import 'shared/presentation/cubits/streak_visibility_cubit.dart';
 
 /// Widget raiz: repositórios e sessão disponíveis para a árvore, tema, locale pt-BR e rotas.
 class ReadUpApp extends StatelessWidget {
@@ -16,11 +19,17 @@ class ReadUpApp extends StatelessWidget {
     required this.authBloc,
     required this.authRepository,
     required this.preferencesRepository,
+    required this.statsRepository,
+    required this.articlesRepository,
+    required this.streakVisibility,
   });
 
   final AuthBloc authBloc;
   final AuthRepository authRepository;
   final PreferencesRepository preferencesRepository;
+  final StatsRepository statsRepository;
+  final ArticlesRepository articlesRepository;
+  final StreakVisibilityCubit streakVisibility;
 
   @override
   Widget build(BuildContext context) {
@@ -28,9 +37,14 @@ class ReadUpApp extends StatelessWidget {
       providers: [
         RepositoryProvider.value(value: authRepository),
         RepositoryProvider.value(value: preferencesRepository),
+        RepositoryProvider.value(value: statsRepository),
+        RepositoryProvider.value(value: articlesRepository),
       ],
-      child: BlocProvider.value(
-        value: authBloc,
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: authBloc),
+          BlocProvider.value(value: streakVisibility),
+        ],
         child: MaterialApp(
           title: 'ReadUp',
           debugShowCheckedModeBanner: false,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../home/presentation/screens/home_screen.dart';
+import '../../../home_tabs/presentation/screens/home_tabs_screen.dart';
 import '../../../onboarding/presentation/screens/onboarding_screen.dart';
 import '../blocs/auth_bloc.dart';
 import 'auth_screen.dart';
@@ -21,7 +21,7 @@ class AuthGate extends StatelessWidget {
         AuthInitial() => const SplashScreen(),
         AuthUserLoadFailure(:final message) => UserLoadErrorScreen(message: message),
         AuthAuthenticated(:final user) when !user.isOnboarded => OnboardingScreen(user: user),
-        AuthAuthenticated(:final user) => HomeScreen(user: user),
+        AuthAuthenticated(:final user) => HomeTabsScreen(user: user),
         AuthUnauthenticated() || AuthInProgress() || AuthFailure() => const AuthScreen(),
       },
     );

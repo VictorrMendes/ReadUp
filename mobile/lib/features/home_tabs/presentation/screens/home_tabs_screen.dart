@@ -1,0 +1,101 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../core/core.dart';
+import '../../../../shared/domain/repositories/articles_repository.dart';
+import '../../../../shared/domain/repositories/stats_repository.dart';
+import '../../../auth/domain/models/user.dart';
+import '../../../auth/presentation/blocs/auth_bloc.dart';
+import '../../../home/presentation/blocs/home_bloc.dart';
+import '../../../home/presentation/screens/home_screen.dart';
+import '../cubits/home_tabs_cubit.dart';
+import '../widgets/bouncy_tab_icon.dart';
+
+const _tabs = [
+  (HomeTab.home, 'Início', Icons.home_outlined, Icons.home),
+  (HomeTab.read, 'Ler', Icons.menu_book_outlined, Icons.menu_book),
+  (HomeTab.vocabulary, 'Vocabulário', Icons.translate_outlined, Icons.translate),
+  (HomeTab.profile, 'Perfil', Icons.person_outline, Icons.person),
+];
+
+/// Abas do app. Cada aba mantém o estado ao trocar (IndexedStack); o Início recarrega ao voltar.
+class HomeTabsScreen extends StatelessWidget {
+  const HomeTabsScreen({super.key, required this.user});
+
+  final User user;
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => HomeTabsCubit()),
+        BlocProvider(
+          create: (context) => HomeBloc(
+            stats: context.read<StatsRepository>(),
+            articles: context.read<ArticlesRepository>(),
+          )..add(HomeLoadRequested(level: user.englishLevel)),
+        ),
+      ],
+      child: BlocConsumer<HomeTabsCubit, HomeTab>(
+        listenWhen: (previous, current) => current == HomeTab.home && previous != current,
+        listener: (context, _) =>
+            context.read<HomeBloc>().add(HomeLoadRequested(level: user.englishLevel)),
+        builder: (context, tab) => Scaffold(
+          body: IndexedStack(
+            index: tab.index,
+            children: [
+              HomeScreen(user: user),
+              const _ComingSoon(title: 'Ler', phase: 3),
+              const _ComingSoon(title: 'Vocabulário', phase: 5),
+              const _ComingSoon(title: 'Perfil', phase: 6, showSignOut: true),
+            ],
+          ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: tab.index,
+            onDestinationSelected: (index) {
+              Haptics.select();
+              context.read<HomeTabsCubit>().select(HomeTab.values[index]);
+            },
+            destinations: [
+              for (final (value, label, icon, selectedIcon) in _tabs)
+                NavigationDestination(
+                  label: label,
+                  icon: BouncyTabIcon(icon: icon, selected: false),
+                  selectedIcon: BouncyTabIcon(icon: selectedIcon, selected: tab == value),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ponytail: abas provisórias até as fases 3 (Ler), 5 (Vocabulário) e 6 (Perfil).
+class _ComingSoon extends StatelessWidget {
+  const _ComingSoon({required this.title, required this.phase, this.showSignOut = false});
+
+  final String title;
+  final int phase;
+  final bool showSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$title chega na fase $phase.'),
+            if (showSignOut)
+              TextButton(
+                onPressed: () => context.read<AuthBloc>().add(const LogoutRequested()),
+                child: const Text('Sair'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
