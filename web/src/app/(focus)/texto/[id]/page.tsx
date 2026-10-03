@@ -23,6 +23,7 @@ import { useReadingSession } from "@/lib/reading-session";
 import { useMe } from "@/lib/session";
 import { getSummary } from "@/lib/stats";
 import { getGoal, type GoalStatus } from "@/lib/user";
+import { listWords } from "@/lib/vocabulary";
 
 // o que muda quando a pessoa lê: o app recarrega essas listas ao voltar
 const READING_KEYS = [["goal"], ["summary"], ["daily"], ["continue"], ["articles"], ["achievements"], ["books"], ["book"], ["words"], ["review"]];
@@ -43,6 +44,9 @@ export default function ReaderPage() {
   const { settings, update: updateSettings } = useReaderSettings();
   const theme = READER_THEMES[settings.theme];
   const paragraphStyle = useMemo(() => bodyStyle(settings), [settings]);
+  // palavras salvas ganham um sublinhado discreto quando reaparecem (reencontro = repetição natural)
+  const words = useQuery({ queryKey: ["words"], queryFn: listWords });
+  const savedWords = useMemo(() => new Set(words.data?.map((w) => w.word)), [words.data]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selection, setSelection] = useState<(ReaderSelection | { paragraph: -1; chunk: -1; word: null; sentence: string }) | null>(null);
   const [progress, setProgress] = useState(0);
@@ -227,6 +231,8 @@ export default function ReaderPage() {
                 index={index}
                 selectedChunk={selection?.paragraph === index ? selection.chunk : null}
                 markColor={theme.mark}
+                saved={savedWords}
+                savedColor={theme.link}
                 style={paragraphStyle}
                 onSelect={onSelectWord}
               />

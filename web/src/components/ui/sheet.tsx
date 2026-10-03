@@ -1,16 +1,27 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { cn } from "./cn";
 
 type Props = { open: boolean; onClose: () => void; label: string; children: ReactNode };
 
+const EXIT_MS = 150;
+
 // Painel modal: sobe de baixo no celular e abre à direita no desktop (o texto continua visível).
 // Fecha no fundo, no X e no Esc; o foco vai para o painel ao abrir e volta ao sair.
 export function Sheet({ open, onClose, label, children }: Props) {
   const panel = useRef<HTMLDivElement>(null);
+  // fechado: continua na tela durante a animação de saída, depois desmonta
+  const [mounted, setMounted] = useState(open);
+  if (open && !mounted) setMounted(true);
+  const closing = mounted && !open;
+  useEffect(() => {
+    if (!closing) return;
+    const id = setTimeout(() => setMounted(false), EXIT_MS);
+    return () => clearTimeout(id);
+  }, [closing]);
   // quem chama costuma passar uma função nova a cada render: guardar em ref evita que o efeito
   // rode de novo e puxe o foco de volta para o painel a cada clique
   const close = useRef(onClose);
@@ -33,15 +44,18 @@ export function Sheet({ open, onClose, label, children }: Props) {
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!mounted) return null;
   return (
-    <div className="fixed inset-0 z-40">
+    <div className="fixed inset-0 z-40" inert={closing}>
       <button
         type="button"
         aria-label="Fechar"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 bg-ink/40 lg:bg-ink/10"
+        className={cn(
+          "absolute inset-0 bg-ink/40 lg:bg-ink/10",
+          closing ? "animate-[fade-out_150ms_var(--ease-exit)_forwards]" : "animate-[fade-in_200ms_var(--ease-enter)]",
+        )}
       />
       <div
         ref={panel}
@@ -51,7 +65,10 @@ export function Sheet({ open, onClose, label, children }: Props) {
         tabIndex={-1}
         className={cn(
           "absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[28px] bg-surface p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-ink shadow-xl outline-none",
-          "animate-[sheet-up_220ms_ease-out] lg:inset-y-0 lg:left-auto lg:right-0 lg:max-h-none lg:w-[420px] lg:rounded-none lg:rounded-l-[28px] lg:animate-[sheet-left_220ms_ease-out]",
+          "lg:inset-y-0 lg:left-auto lg:right-0 lg:max-h-none lg:w-[420px] lg:rounded-none lg:rounded-l-[28px]",
+          closing
+            ? "animate-[sheet-down_150ms_var(--ease-exit)_forwards] lg:animate-[sheet-right_150ms_var(--ease-exit)_forwards]"
+            : "animate-[sheet-up_200ms_var(--ease-enter)] lg:animate-[sheet-left_200ms_var(--ease-enter)]",
         )}
       >
         <button

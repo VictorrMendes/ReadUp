@@ -17,6 +17,7 @@ import { errorMessage } from "@/lib/api";
 import { formatNumber, initials } from "@/lib/format";
 import { ME_KEY, useMe, useSignOut } from "@/lib/session";
 import { getDaily, getSummary } from "@/lib/stats";
+import { setStreakHidden, useStreakHidden } from "@/lib/streak-visibility";
 import { GOAL_OPTIONS, LEVEL_OPTIONS, setGoal, setLevel } from "@/lib/user";
 
 const SAVED_FEEDBACK_MS = 2000;
@@ -28,6 +29,7 @@ export default function ProfilePage() {
   const summary = useQuery({ queryKey: ["summary"], queryFn: getSummary });
   const daily = useQuery({ queryKey: ["daily", 7], queryFn: () => getDaily(7) });
   const achievements = useQuery({ queryKey: ["achievements"], queryFn: getAchievements });
+  const streakHidden = useStreakHidden();
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -154,6 +156,21 @@ export default function ProfilePage() {
             disabled={saving}
             onChange={(target) => void save(() => setGoal(target), [["goal"], ["daily"], ["summary"]])}
           />
+          {/* preferência deste navegador: a ofensiva continua contando, só não aparece */}
+          <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-card border border-line bg-surface p-4">
+            <span className="flex-1">
+              <span className="block font-semibold">Mostrar ofensiva</span>
+              <span className="block text-sm text-ink-soft">Some do Início e da tela de conclusão. Continua contando.</span>
+            </span>
+            <input
+              type="checkbox"
+              role="switch"
+              className="mt-1 size-5 accent-primary-500"
+              checked={streakHidden === false}
+              disabled={streakHidden === null}
+              onChange={(event) => setStreakHidden(!event.target.checked)}
+            />
+          </label>
           <Button variant="ghost" className="mt-4 self-start lg:hidden" icon={<LogOut className="size-4" aria-hidden />} onClick={() => void signOut()}>
             Sair
           </Button>

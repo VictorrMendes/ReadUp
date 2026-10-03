@@ -15,8 +15,8 @@ describe("WeekChart", () => {
     render(
       <WeekChart
         days={[
-          { day: "2026-09-30", words_read: 0, xp: 0, goal_met: false },
-          { day: "2026-10-01", words_read: 520, xp: 10, goal_met: true },
+          { day: "2026-09-30", words_read: 0, xp: 0, goal_met: false, streak_kept: false },
+          { day: "2026-10-01", words_read: 520, xp: 10, goal_met: true, streak_kept: true },
         ]}
       />,
     );

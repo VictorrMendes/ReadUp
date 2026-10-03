@@ -12,6 +12,7 @@ const saveProgress = vi.fn(
     xp_gained: 2,
     goal_met: false,
     streak: 0,
+    streak_active_today: false,
     achievements_unlocked: [],
   }),
 );

@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Volume2, X } from "lucide-react";
+import { CheckCircle2, Loader2, Volume2, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ContextSentence } from "@/components/reader/context-sentence";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,11 @@ import { ApiError } from "@/lib/api";
 import { formatNumber } from "@/lib/format";
 import { advance, currentItem, firstPassTotal, startSession, type ReviewSession } from "@/lib/review-session";
 import { speak } from "@/lib/speech";
+import { useCountUp } from "@/lib/use-count-up";
 import { answerReview, getReviewQueue, type ReviewQueue } from "@/lib/vocabulary";
+
+// o cartão respondido sai (200 ms) antes do próximo entrar
+const LEAVE_MS = 200;
 
 // o que a revisão muda: fila, XP do dia, metas e estatísticas
 const REVIEW_KEYS = [["review"], ["summary"], ["goal"], ["daily"], ["achievements"]];
@@ -36,6 +40,10 @@ export default function ReviewPage() {
   const [revealed, setRevealed] = useState(false);
   const [sending, setSending] = useState(false);
   const [answerError, setAnswerError] = useState<string | null>(null);
+  // "já sei": check e o cartão sai para a direita; "ainda aprendendo": volta para a pilha (sem tremida)
+  const [leaving, setLeaving] = useState<"known" | "learning" | null>(null);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(leaveTimer.current), []);
 
   if (queue.data && session === null) setSession(startSession(queue.data.cards));
 
@@ -50,30 +58,34 @@ export default function ReviewPage() {
 
   const answer = useCallback(
     async (known: boolean) => {
-      if (!session || !item || sending) return;
+      if (!session || !item || sending || leaving) return;
+      const next = (updated: ReviewSession) => {
+        setLeaving(known ? "known" : "learning");
+        leaveTimer.current = setTimeout(() => {
+          setSession(updated);
+          setRevealed(false);
+          setLeaving(null);
+        }, LEAVE_MS);
+      };
       // treino extra: a palavra já voltou para a caixa 0 no servidor, só avança aqui
       if (item.practice) {
-        setSession(advance(session, known));
-        setRevealed(false);
+        next(advance(session, known));
         return;
       }
       setSending(true);
       setAnswerError(null);
       try {
         const result = await answerReview(item.card.id, known);
-        setSession(advance(session, known, result.xp_gained));
-        setRevealed(false);
+        next(advance(session, known, result.xp_gained));
       } catch (e) {
         // 409: já respondida ou limite do dia (ex.: outra aba); segue sem contar
-        if (e instanceof ApiError && e.status === 409) {
-          setSession(advance(session, known));
-          setRevealed(false);
-        } else setAnswerError("Não foi possível salvar a resposta. Tente de novo.");
+        if (e instanceof ApiError && e.status === 409) next(advance(session, known));
+        else setAnswerError("Não foi possível salvar a resposta. Tente de novo.");
       } finally {
         setSending(false);
       }
     },
-    [session, item, sending],
+    [session, item, sending, leaving],
   );
 
   // atalhos: espaço/Enter mostra a tradução; 1 = ainda aprendendo; 2 = já sei; Esc fecha
@@ -132,9 +144,23 @@ export default function ReviewPage() {
             </p>
             <Card
               key={`${session.index}`}
-              // novo cartão sobe; ao mostrar a tradução ele vira (a face troca na metade)
-              className={`flex flex-col gap-5 ${revealed ? "animate-[flip_300ms_both]" : "animate-[rise_280ms_var(--ease-enter)_both]"}`}
+              // novo cartão sobe; ao mostrar a tradução ele vira (a face troca na metade); respondido, sai
+              className={`relative flex flex-col gap-5 ${
+                leaving === "known"
+                  ? "animate-[card-out-right_200ms_var(--ease-exit)_forwards]"
+                  : leaving === "learning"
+                    ? "animate-[card-out-down_200ms_var(--ease-exit)_forwards]"
+                    : revealed
+                      ? "animate-[flip_300ms_both]"
+                      : "animate-[rise_280ms_var(--ease-enter)_both]"
+              }`}
             >
+              {leaving === "known" && (
+                <CheckCircle2
+                  className="absolute right-4 top-4 size-8 text-success-600 animate-[pop_200ms_var(--ease-enter)_both]"
+                  aria-hidden
+                />
+              )}
               <div className="flex items-center justify-between gap-3">
                 <h1 lang="en" className="font-serif text-3xl font-semibold">
                   {item.card.word}
@@ -195,18 +221,41 @@ function Center({ children }: { children: React.ReactNode }) {
 function Summary({ session, queue, onClose }: { session: ReviewSession; queue: ReviewQueue; onClose: () => void }) {
   const empty = session.items.length === 0;
   const limitReached = empty && queue.reviewed_today >= queue.daily_limit;
+  const xp = useCountUp(session.xp, { delay: 300 });
+  const step = (i: number) => ({ animation: `rise 280ms var(--ease-enter) ${i * 90}ms both` });
   return (
     <Center>
       <Image src="/mascot.png" alt="" width={160} height={160} className="animate-[pop_300ms_ease-out]" />
-      <h1 className="text-2xl font-bold">{empty ? "Nada para revisar agora" : "Revisão concluída"}</h1>
-      <p className="text-ink-soft">
-        {empty
-          ? limitReached
+      <h1 className="text-2xl font-bold" style={step(1)}>
+        {empty ? "Nada para revisar agora" : "Revisão concluída"}
+      </h1>
+      {empty ? (
+        <p className="text-ink-soft">
+          {limitReached
             ? `Você já revisou ${queue.daily_limit} palavras hoje. Volte amanhã!`
-            : "Palavras salvas entram na revisão no dia seguinte."
-          : `${session.known} já sabia · ${session.learning} ainda aprendendo`}
-      </p>
-      {session.xp > 0 && <Badge tone="primary">+{formatNumber(session.xp)} XP</Badge>}
+            : "Palavras salvas entram na revisão no dia seguinte."}
+        </p>
+      ) : (
+        // mesmo estilo da conclusão de leitura: o que foi feito, sem vermelho para o que falta
+        <div className="grid w-full max-w-xs grid-cols-2 gap-3" style={step(2)}>
+          <div className="rounded-2xl border border-success-100 bg-success-100/40 p-4">
+            <p className="text-2xl font-bold tabular-nums">{formatNumber(session.known)}</p>
+            <p className="text-xs text-ink-soft">já sabia</p>
+          </div>
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <p className="text-2xl font-bold tabular-nums">{formatNumber(session.learning)}</p>
+            <p className="text-xs text-ink-soft">ainda aprendendo</p>
+          </div>
+        </div>
+      )}
+      {session.xp > 0 && (
+        <span style={step(3)}>
+          <Badge tone="primary">
+            <span aria-hidden>+{formatNumber(xp)} XP</span>
+            <span className="sr-only">+{formatNumber(session.xp)} XP</span>
+          </Badge>
+        </span>
+      )}
       <Button onClick={onClose}>Voltar ao vocabulário</Button>
     </Center>
   );
