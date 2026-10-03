@@ -1,0 +1,47 @@
+name: readup
+description: "ReadUp: leitura em inglês no seu nível."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.1
+
+dependencies:
+  equatable: ^3.0.0
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  flutter_localizations:
+    sdk: flutter
+  flutter_secure_storage: ^11.2.0
+  http: ^1.6.0
+  intl: ^0.20.3
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.5
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  # Inter (interface) e Literata (texto de leitura e títulos de textos), licença OFL (assets/fonts/OFL-*.txt)
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter_400Regular.ttf
+        - asset: assets/fonts/Inter_600SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter_700Bold.ttf
+          weight: 700
+    - family: Literata
+      fonts:
+        - asset: assets/fonts/Literata_400Regular.ttf
+        - asset: assets/fonts/Literata_600SemiBold.ttf
+          weight: 600

@@ -1,0 +1,28 @@
+include: package:flutter_lints/flutter.yaml
+
+formatter:
+  page_width: 100
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+  language:
+    # sem dynamic implícito: JSON da API vira tipo na borda (fromJson), não se espalha pelo app
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - prefer_final_locals
+    - prefer_single_quotes
+    - require_trailing_commas
+    - unawaited_futures

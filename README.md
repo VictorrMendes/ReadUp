@@ -4,7 +4,7 @@ Aplicativo mobile para aprender inglês pelo hábito diário de leitura.
 
 ```text
 readup/
-├── mobile/            # React Native + Expo SDK 57 + Expo Router + TypeScript
+├── mobile/            # Flutter (Dart) + BLoC, Clean Architecture por feature
 ├── backend/           # FastAPI (monólito modular em backend/app/*)
 ├── storage/pdfs/      # PDFs privados enviados pelos usuários (fora do git)
 └── docker-compose.yml # api (FastAPI) + db (PostgreSQL 17)
@@ -79,36 +79,37 @@ DATABASE_URL=postgresql+psycopg://readup:<senha>@127.0.0.1:5433/readup uv run al
 
 ## Mobile
 
-O aplicativo mobile utiliza Expo SDK 57 com Expo Router e TypeScript.
+App em **Flutter** (Dart) com `flutter_bloc`, Clean Architecture organizada por feature
+(`lib/features/<feature>/{domain,presentation}`), `core/` (HTTP, exceções, rotas, storage) e
+`design_system/` (cores, tipografia, espaços, tema Material 3, motion).
 
-### Configuração
+Regras do projeto:
 
-1. Crie o arquivo de ambiente:
-   ```sh
-   cp mobile/.env.example mobile/.env
-   ```
-2. Defina `EXPO_PUBLIC_API_URL` com o IP da sua máquina na rede local (LAN), por exemplo:
-   ```env
-   EXPO_PUBLIC_API_URL=http://192.168.0.10:8000
-   ```
-   > **Nota:** Não utilize `localhost`, pois no celular físico ou emulador ele apontará para o próprio aparelho. Se o roteador reiniciar e o IP da sua máquina mudar, atualize o `mobile/.env` e reinicie o bundler limpando o cache: `npx expo start -c`.
+- Tela → BLoC → Repositório: telas nunca chamam repositórios.
+- Repositórios usam só o `HttpHelper` (nunca `package:http` direto) e envolvem tudo em
+  `repositoryExceptionHandlerScope`, que entrega `RequestFailure` ao BLoC.
+- Texto pelo `Theme.of(context).textTheme`; estilos de leitura por `context.readupText`.
+- Widgets auxiliares são classes próprias (nada de `_buildX()` que devolve widget).
 
 ### Execução
 
+A URL da API vai por `--dart-define`. No emulador Android, `10.0.2.2` é o seu computador (padrão do
+entrypoint de dev); no celular físico, use o IP da máquina na rede local.
+
 ```sh
 cd mobile
-npm install
-npx expo start
+flutter pub get
+flutter run -t lib/main_dev.dart --dart-define=API_URL=http://192.168.0.10:8000
 ```
 
-Abra o aplicativo **Expo Go** no celular e escaneie o QR code gerado no terminal. O celular e o computador devem estar na **mesma rede Wi-Fi**.
+Build de produção: `flutter build apk -t lib/main_prod.dart --dart-define=API_URL=https://...`
+(o build Android pede Java 17+).
 
 ### Testes e validações do mobile
 
 ```sh
 cd mobile
-npx tsc --noEmit
-npx expo lint
-npm test
-npx expo-doctor
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
 ```
