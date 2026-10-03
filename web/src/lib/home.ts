@@ -20,7 +20,19 @@ export function goalActionLabel(completed: boolean, hasInProgress: boolean): str
   return hasInProgress ? "Continuar leitura" : "Ler um texto";
 }
 
-export function streakLine(current: number, longest: number, activeToday: boolean): string {
-  if (current === 0 && longest > 0) return `Recomece hoje · recorde de ${formatDays(longest)} salvo`;
-  return activeToday ? "de ofensiva · mantida hoje" : "de ofensiva · leia hoje para manter";
+/** Legenda da ofensiva: positiva, nunca de culpa (plan.txt §2 Ética). Mesmos textos do app. */
+export function streakLine(
+  current: number,
+  longest: number,
+  activeToday: boolean,
+  goalMetToday = false,
+): string {
+  if (current === 0 && longest > 0) return `Acontece. Recomece hoje · recorde de ${formatDays(longest)} salvo`;
+  if (goalMetToday) return "de ofensiva · meta de hoje batida";
+  return activeToday ? "de ofensiva · mantida hoje" : "de ofensiva · um texto curto hoje mantém";
+}
+
+export function freezesLabel(freezes: number): string {
+  if (freezes === 0) return "Sem escudos: leia hoje para manter";
+  return `${freezes} ${freezes === 1 ? "escudo" : "escudos"} · cobrem dias sem leitura`;
 }

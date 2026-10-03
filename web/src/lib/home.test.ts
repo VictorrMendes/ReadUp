@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { goalActionLabel, heroMessage, minutesLeft, streakLine } from "./home";
+import { freezesLabel, goalActionLabel, heroMessage, minutesLeft, streakLine } from "./home";
 
 test("frase do topo segue a meta", () => {
   const base = { target: 500, words_today: 0, remaining: 500, completed: false };
@@ -20,8 +20,15 @@ test("ação da meta e minutos restantes", () => {
   expect(minutesLeft(1000)).toBe(5);
 });
 
-test("linha da ofensiva", () => {
-  expect(streakLine(0, 5, false)).toBe("Recomece hoje · recorde de 5 dias salvo");
+test("linha da ofensiva (mesmos textos do app)", () => {
+  expect(streakLine(0, 5, false)).toBe("Acontece. Recomece hoje · recorde de 5 dias salvo");
   expect(streakLine(3, 5, true)).toBe("de ofensiva · mantida hoje");
-  expect(streakLine(3, 5, false)).toBe("de ofensiva · leia hoje para manter");
+  expect(streakLine(3, 5, true, true)).toBe("de ofensiva · meta de hoje batida");
+  expect(streakLine(3, 5, false)).toBe("de ofensiva · um texto curto hoje mantém");
+});
+
+test("escudos", () => {
+  expect(freezesLabel(2)).toBe("2 escudos · cobrem dias sem leitura");
+  expect(freezesLabel(1)).toBe("1 escudo · cobrem dias sem leitura");
+  expect(freezesLabel(0)).toBe("Sem escudos: leia hoje para manter");
 });

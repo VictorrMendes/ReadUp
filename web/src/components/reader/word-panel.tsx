@@ -21,13 +21,18 @@ export function WordPanel({ selection, articleId, onClose }: Props) {
   // para a voz ao trocar de palavra/trecho ou fechar (não a cada render da tela)
   const key = selection ? `${selection.word ?? ""}|${selection.sentence}` : null;
   useEffect(() => () => stopSpeaking(), [key]);
+  // a última palavra/frase continua no painel enquanto ele sai
+  // (o leitor cria o objeto a cada render: compara pelo conteúdo)
+  const [shown, setShown] = useState(selection);
+  const shownKey = shown ? `${shown.word ?? ""}|${shown.sentence}` : null;
+  if (selection && key !== shownKey) setShown(selection);
   return (
-    <Sheet open={selection !== null} onClose={onClose} label={selection?.word ? `Palavra ${selection.word}` : "Frase"}>
-      {selection &&
-        (selection.word === null ? (
-          <SentenceContent key={selection.sentence} sentence={selection.sentence} articleId={articleId} />
+    <Sheet open={selection !== null} onClose={onClose} label={shown?.word ? `Palavra ${shown.word}` : "Frase"}>
+      {shown &&
+        (shown.word === null ? (
+          <SentenceContent key={shown.sentence} sentence={shown.sentence} articleId={articleId} />
         ) : (
-          <WordContent key={selection.word} word={selection.word} sentence={selection.sentence} articleId={articleId} />
+          <WordContent key={shown.word} word={shown.word} sentence={shown.sentence} articleId={articleId} />
         ))}
     </Sheet>
   );
@@ -115,6 +120,8 @@ function WordContent({ word, sentence, articleId }: { word: string; sentence: st
   const lookup = useQuery({ queryKey: ["lookup", word], queryFn: () => lookupWord(word) });
   const sentenceTranslation = useSentenceTranslation(articleId);
   const [busy, setBusy] = useState(false);
+  // salva agora (não ao abrir uma já salva): o check entra com um salto
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const currentSaved = lookup.data?.saved_id ?? null;
 
@@ -140,6 +147,7 @@ function WordContent({ word, sentence, articleId }: { word: string; sentence: st
     run(async () => {
       const created = await saveWord({ word, article_id: articleId, context: sentence });
       setSavedId(created.id);
+      setJustSaved(true);
     }, "Não foi possível salvar. Tente novamente.");
 
   const remove = () =>
@@ -181,7 +189,11 @@ function WordContent({ word, sentence, articleId }: { word: string; sentence: st
       {currentSaved !== null ? (
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 className="size-5 text-success-600" aria-hidden /> Palavra salva
+            <CheckCircle2
+              className={`size-5 text-success-600 ${justSaved ? "animate-[pop_320ms_var(--ease-enter)_both]" : ""}`}
+              aria-hidden
+            />{" "}
+            Palavra salva
           </span>
           <Button variant="ghost" loading={busy} onClick={() => void remove()}>
             Remover

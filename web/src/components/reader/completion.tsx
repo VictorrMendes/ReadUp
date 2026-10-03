@@ -12,14 +12,15 @@ import { formatDays, formatNumber } from "@/lib/format";
 import { durations, prefersReducedMotion } from "@/lib/motion";
 import type { SessionGains } from "@/lib/reading-session";
 import { useCountUp } from "@/lib/use-count-up";
+import { useStreakHidden } from "@/lib/streak-visibility";
 import type { GoalStatus } from "@/lib/user";
 
 const PHRASES = ["Mais um texto lido!", "Mandou bem!", "Leitura concluída"];
 const STREAK_MILESTONES = [3, 7, 14, 30, 50, 66, 100, 365];
 
-/** Título: marco de ofensiva quando a meta virou hoje; senão uma das 3 frases. */
-export function completionTitle(streak: number, goalMet: boolean, pick: number): string {
-  if (goalMet && STREAK_MILESTONES.includes(streak)) return `${streak} dias seguidos!`;
+/** Título: marco quando a ofensiva subiu nesta leitura; senão uma das 3 frases. */
+export function completionTitle(streak: number, streakUp: boolean, pick: number): string {
+  if (streakUp && STREAK_MILESTONES.includes(streak)) return `${streak} dias seguidos!`;
   return PHRASES[Math.floor(pick * PHRASES.length) % PHRASES.length];
 }
 
@@ -73,10 +74,13 @@ export function Completion({
   const [pick] = useState(() => Math.random());
   const heading = useRef<HTMLHeadingElement>(null);
   const [finished, setFinished] = useState(false);
+  // ofensiva +1 nesta leitura (mínimo do dia), e a pessoa não a escondeu
+  const streakHidden = useStreakHidden();
+  const streakUp = gains.streakUp && streakHidden === false;
   // foco no título ao abrir e ao trocar para o "até amanhã"
   useEffect(() => heading.current?.focus(), [finished]);
 
-  const title = completionTitle(gains.streak, gains.goalMet, pick);
+  const title = completionTitle(gains.streak, streakUp, pick);
   const target = goal?.target ?? null;
   const fraction = target ? Math.min(1, (goal?.words_today ?? 0) / target) : 0;
   const before = target ? Math.min(1, Math.max(0, ((goal?.words_today ?? 0) - gains.words) / target)) : 0;
@@ -85,7 +89,7 @@ export function Completion({
   const [ringFull, setRingFull] = useState(false);
   const [reduced] = useState(prefersReducedMotion);
   const crossed = (target !== null && before >= 1) || (willCross && (ringFull || reduced));
-  const milestone = gains.goalMet ? milestoneNote(gains.streak) : null;
+  const milestone = streakUp ? milestoneNote(gains.streak) : null;
   const xp = useCountUp(gains.xp, { delay: 300 });
   const words = useCountUp(gains.words, { delay: 360 });
 
@@ -107,9 +111,11 @@ export function Completion({
             Até amanhã!
           </h1>
           <p className="text-ink-soft">
-            {goal?.completed
+            {goal?.completed && streakHidden === false
               ? `Meta cumprida e ofensiva de ${formatDays(gains.streak)} garantida. Descansar também faz parte.`
-              : "Boa leitura hoje. Descansar também faz parte."}
+              : goal?.completed
+                ? "Meta cumprida. Descansar também faz parte."
+                : "Boa leitura hoje. Descansar também faz parte."}
           </p>
           <Button block className="mt-4" onClick={onFinishForToday}>
             Voltar ao início
@@ -165,7 +171,7 @@ export function Completion({
             </div>
           </div>
         )}
-        {gains.goalMet && (
+        {streakUp && (
           <div className="flex items-center gap-3 rounded-2xl border border-streak-100 bg-streak-50 p-4" style={step(4)}>
             <Flame className="size-8 shrink-0 fill-streak text-streak animate-[flame-pulse_1.2s_ease-in-out_700ms_both]" aria-hidden />
             <div>

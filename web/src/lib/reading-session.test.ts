@@ -11,6 +11,7 @@ const result = (over: Partial<ProgressResult> = {}): ProgressResult => ({
   xp_gained: 0,
   goal_met: false,
   streak: 0,
+  streak_active_today: false,
   achievements_unlocked: [],
   ...over,
 });
@@ -67,5 +68,40 @@ test("concluir envia progresso 100 e devolve a resposta", async () => {
   const answer = await session.finish();
   expect(send).toHaveBeenLastCalledWith(100, 3);
   expect(answer.xp_gained).toBe(1);
+  session.stop();
+});
+
+test("ofensiva +1 só quando o mínimo do dia vira durante a sessão", async () => {
+  const onResult = vi.fn();
+  const responses = [
+    result({ streak: 4 }), // abertura: ofensiva de ontem, hoje ainda não contou
+    result({ streak: 5, streak_active_today: true, words_credited: 60 }),
+  ];
+  const session = startReadingSession({
+    send: async () => responses.shift() ?? result({ streak: 5, streak_active_today: true }),
+    initialProgress: 0,
+    onResult,
+    onUnauthorized: () => {},
+  });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ streakUp: false, streak: 4 }));
+
+  session.report(40);
+  await vi.advanceTimersByTimeAsync(SEND_EVERY_SECONDS * 1000);
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ streakUp: true, streak: 5 }));
+  session.stop();
+});
+
+test("ofensiva já mantida antes da sessão não conta como +1 nela", async () => {
+  const onResult = vi.fn();
+  const session = startReadingSession({
+    send: async () => result({ streak: 5, streak_active_today: true }),
+    initialProgress: 0,
+    onResult,
+    onUnauthorized: () => {},
+  });
+  session.report(40);
+  await vi.advanceTimersByTimeAsync(SEND_EVERY_SECONDS * 1000);
+  expect(onResult).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ streakUp: false }));
   session.stop();
 });

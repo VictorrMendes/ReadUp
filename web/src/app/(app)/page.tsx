@@ -17,10 +17,12 @@ import { heroMessage } from "@/lib/home";
 import { riseIn } from "@/lib/motion";
 import { useMe } from "@/lib/session";
 import { getDaily, getSummary } from "@/lib/stats";
+import { useStreakHidden } from "@/lib/streak-visibility";
 import { getGoal } from "@/lib/user";
 
 export default function HomePage() {
   const { data: user } = useMe();
+  const streakHidden = useStreakHidden();
   const level = user?.english_level ?? null;
   const goal = useQuery({ queryKey: ["goal"], queryFn: getGoal });
   const continueReading = useQuery({ queryKey: ["continue"], queryFn: getContinueReading });
@@ -113,12 +115,15 @@ export default function HomePage() {
           </section>
         </div>
         <div className="flex flex-col gap-5">
-          {summary.data ? (
+          {streakHidden !== false ? null : summary.data ? (
             <div style={riseIn(1)}>
               <StreakCard
                 current={summary.data.streak_current}
                 longest={summary.data.streak_longest}
                 activeToday={summary.data.streak_active_today}
+                goalMetToday={goal.data?.completed}
+                freezes={summary.data.streak_freezes}
+                wordsTotal={summary.data.words_total}
                 week={week.data}
               />
             </div>

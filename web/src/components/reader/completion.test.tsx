@@ -5,7 +5,7 @@ import { Completion, completionTitle, milestoneNote } from "./completion";
 
 vi.mock("next/image", () => ({ default: () => null }));
 
-const GAINS = { xp: 40, words: 400, goalMet: true, streak: 7, achievements: [] };
+const GAINS = { xp: 40, words: 400, goalMet: true, streakUp: true, streak: 7, achievements: [] };
 // antes desta leitura: 300 de 500; depois: 700 (cruza a meta)
 const CROSSING = { target: 500, words_today: 700, remaining: 0, completed: true };
 
@@ -99,4 +99,21 @@ test("meta ainda aberta: não oferece terminar por hoje", () => {
 
   expect(screen.queryByRole("button", { name: "Terminar por hoje" })).not.toBeInTheDocument();
   expect(screen.getByText("Faltam 300 palavras")).toBeInTheDocument();
+});
+
+test("ofensiva escondida no Perfil: sem cartão nem marco de ofensiva", () => {
+  localStorage.setItem("readup.hide_streak", "1");
+  try {
+    renderCompletion();
+    expect(screen.queryByText(/de ofensiva/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Uma semana inteira lendo em inglês.")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).not.toBe("7 dias seguidos!");
+  } finally {
+    localStorage.removeItem("readup.hide_streak");
+  }
+});
+
+test("ofensiva já mantida antes (sem +1): sem cartão de ofensiva", () => {
+  renderCompletion({ gains: { ...GAINS, streakUp: false } });
+  expect(screen.queryByText(/de ofensiva/)).not.toBeInTheDocument();
 });

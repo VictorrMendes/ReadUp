@@ -13,6 +13,7 @@ export type SessionGains = {
   xp: number;
   words: number;
   goalMet: boolean;
+  streakUp: boolean; // a ofensiva contou hoje durante esta sessão (mínimo do dia)
   streak: number;
   achievements: AchievementRef[];
 };
@@ -52,6 +53,7 @@ export function startReadingSession({
   const achievements: AchievementRef[] = [];
   // estado da meta na primeira resposta (abertura): só conta como cumprida na sessão se virou depois
   let goalMetBefore: boolean | null = null;
+  let streakActiveBefore: boolean | null = null;
 
   // open: envio de abertura (0 s), mesmo sem nada novo a enviar
   // force: envio do "Concluir leitura", mesmo sem tempo ou avanço novos (resolve os finishers)
@@ -77,6 +79,7 @@ export function startReadingSession({
       xp += result.xp_gained;
       words += result.words_credited;
       goalMetBefore ??= result.goal_met;
+      streakActiveBefore ??= result.streak_active_today;
       for (const unlocked of result.achievements_unlocked) {
         if (!achievements.some((a) => a.id === unlocked.id)) achievements.push(unlocked);
       }
@@ -84,6 +87,7 @@ export function startReadingSession({
         xp,
         words,
         goalMet: result.goal_met && !goalMetBefore,
+        streakUp: result.streak_active_today && !streakActiveBefore,
         streak: result.streak,
         achievements: [...achievements],
       });
@@ -156,6 +160,7 @@ export function useReadingSession({
     xp: 0,
     words: 0,
     goalMet: false,
+    streakUp: false,
     streak: 0,
     achievements: [],
   });

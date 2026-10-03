@@ -4,7 +4,7 @@ import { BookOpen, Home, Languages, LogOut, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { cn } from "@/components/ui/cn";
 import { useSignOut } from "@/lib/session";
@@ -27,6 +27,13 @@ export function isActive(href: string, pathname: string, also: readonly string[]
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const signOut = useSignOut();
+  // o ícone da aba só salta depois de uma troca de tela (não na primeira carga)
+  const [lastPath, setLastPath] = useState(pathname);
+  const [navigated, setNavigated] = useState(false);
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
+    setNavigated(true);
+  }
 
   return (
     <div className="min-h-dvh lg:pl-64">
@@ -78,11 +85,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-semibold",
+                "flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-transform active:scale-95",
                 active ? "text-primary-500" : "text-ink-soft",
               )}
             >
-              <Icon className="size-6" aria-hidden />
+              <Icon
+                className={cn("size-6", active && navigated && "animate-[tab-bounce_300ms_var(--ease-standard)]")}
+                aria-hidden
+              />
               {label}
             </Link>
           );

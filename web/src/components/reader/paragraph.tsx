@@ -2,6 +2,7 @@
 
 import { memo, useMemo, type CSSProperties } from "react";
 
+import { cn } from "@/components/ui/cn";
 import { chunkParagraph, sentenceText } from "@/lib/vocabulary";
 
 export type ReaderSelection = { paragraph: number; chunk: number; word: string; sentence: string };
@@ -11,13 +12,24 @@ type Props = {
   index: number;
   selectedChunk: number | null;
   markColor: string;
+  saved: ReadonlySet<string>; // palavras salvas (normalizadas): sublinhado discreto quando reaparecem
+  savedColor: string;
   style: CSSProperties;
   onSelect: (selection: ReaderSelection) => void;
 };
 
 // Cada palavra é um <span> clicável dentro do parágrafo (o texto continua corrido e selecionável).
 // Clique sem seleção abre a palavra; arrastar para selecionar fica com a barra "Traduzir trecho".
-export const Paragraph = memo(function Paragraph({ text, index, selectedChunk, markColor, style, onSelect }: Props) {
+export const Paragraph = memo(function Paragraph({
+  text,
+  index,
+  selectedChunk,
+  markColor,
+  saved,
+  savedColor,
+  style,
+  onSelect,
+}: Props) {
   const chunks = useMemo(() => chunkParagraph(text), [text]);
   return (
     <p className="mb-6" style={style} data-paragraph={index} lang="en">
@@ -37,8 +49,14 @@ export const Paragraph = memo(function Paragraph({ text, index, selectedChunk, m
             {chunk.text.slice(0, chunk.start)}
             {/* o bloco inteiro é clicável; o destaque e o sublinhado ficam só na palavra */}
             <span
-              className="rounded-sm decoration-2 underline-offset-4 group-hover:underline"
-              style={i === selectedChunk ? { background: markColor } : undefined}
+              className={cn(
+                "rounded-sm decoration-2 underline-offset-4 transition-[background-color] duration-[120ms] ease-[var(--ease-enter)] group-hover:underline",
+                saved.has(word) && "underline decoration-dotted",
+              )}
+              style={{
+                background: i === selectedChunk ? markColor : undefined,
+                textDecorationColor: saved.has(word) ? savedColor : undefined,
+              }}
             >
               {chunk.text.slice(chunk.start, chunk.end)}
             </span>

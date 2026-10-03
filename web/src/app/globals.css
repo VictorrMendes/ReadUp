@@ -54,14 +54,6 @@ body {
   outline-offset: 2px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
 
 @keyframes sheet-up {
   from { transform: translateY(48px); opacity: 0; }
@@ -110,7 +102,57 @@ body {
   75% { opacity: 1; }
   100% { transform: translate(var(--x), 75vh) rotate(var(--r)); opacity: 0; }
 }
+/* saídas: o painel desce/sai para o lado e o fundo some (accelerate, ~150 ms) */
+@keyframes sheet-down {
+  to { transform: translateY(48px); opacity: 0; }
+}
+@keyframes sheet-right {
+  to { transform: translateX(48px); opacity: 0; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+/* ícone da aba que acabou de ficar ativa: um salto curto */
+@keyframes tab-bounce {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+}
+/* revisão: "já sei" sai para a direita; "ainda aprendendo" volta para a pilha (sem tremida) */
+@keyframes card-out-right {
+  to { transform: translateX(40%) rotate(4deg); opacity: 0; }
+}
+@keyframes card-out-down {
+  to { transform: translateY(24px); opacity: 0; }
+}
+
+/* "Reduzir movimento" (plan.txt §3): o movimento vira fade ou some, sem cortar o significado
+   (Apple: "dissolve" em vez de deslizar). Transições de estado ficam instantâneas. */
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+  @keyframes rise { from { opacity: 0; } }
+  @keyframes pop { from { opacity: 0; } }
+  @keyframes sheet-up { from { opacity: 0; } }
+  @keyframes sheet-left { from { opacity: 0; } }
+  @keyframes sheet-down { to { opacity: 0; } }
+  @keyframes sheet-right { to { opacity: 0; } }
+  @keyframes card-out-right { to { opacity: 0; } }
+  @keyframes card-out-down { to { opacity: 0; } }
+  /* o cartão troca de face com um crossfade em vez de girar */
+  @keyframes flip {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  /* decorativos: parados */
+  @keyframes flame-pulse { to { transform: none; } }
+  @keyframes tab-bounce { to { transform: none; } }
+  @keyframes shimmer { to { background-position: 50% 0; } }
   .confetti { display: none; }
 }
 
