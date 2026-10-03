@@ -113,8 +113,30 @@ flutter run -t lib/main_dev.dart --dart-define=API_URL=http://192.168.0.10:8000
 ```
 
 Build de produção: `flutter build apk -t lib/main_prod.dart --dart-define=API_URL=https://...`
-(o build Android pede Java 17+). O release ainda é assinado com a chave de debug do Flutter:
-antes de publicar na loja, configure uma chave própria em `android/app/build.gradle.kts`.
+(o build Android pede Java 17+). Sem as variáveis `ANDROID_KEYSTORE_*` (abaixo), o release é
+assinado com a chave de debug.
+
+### APK pelo GitHub Actions
+
+O workflow `Android` (`.github/workflows/android.yml`) gera um APK de release a cada PR para
+`master` ou `homolog` que mexa em `mobile/` e comenta o link de download no PR. O merge cria uma
+Release com o APK: `vX.Y.Z-N` na `master` e pré-release `homolog-vX.Y.Z-N` na `homolog`.
+
+Configuração (uma vez, em *Settings* do repositório):
+
+1. *Environments*: crie `production` e `homolog`, cada um com a variável `API_URL` (a URL HTTPS da
+   API daquele ambiente; o Android bloqueia HTTP no build de release).
+2. Chave de assinatura, para cada APK novo instalar por cima do anterior (sem ela, é preciso
+   desinstalar antes):
+
+   ```sh
+   keytool -genkey -v -keystore readup-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias readup
+   base64 -w0 readup-release.jks   # vira o secret ANDROID_KEYSTORE_BASE64
+   ```
+
+   *Secrets and variables → Actions*: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+   `ANDROID_KEY_ALIAS` (`readup`) e `ANDROID_KEY_PASSWORD`. Guarde o `.jks` fora do repositório e
+   com backup: sem ele, nenhuma versão futura atualiza o app instalado (nem na loja).
 
 HTTP sem TLS só é aceito no build de debug do Android (`src/debug/AndroidManifest.xml`) e, no iOS,
 só para a rede local; produção usa HTTPS.
