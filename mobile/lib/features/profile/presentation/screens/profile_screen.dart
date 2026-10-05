@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/core.dart';
+import '../../../../core/services/floating_translator.dart';
 import '../../../../core/services/reminders.dart';
 import '../../../../design_system/readup_colors.dart';
 import '../../../../design_system/spaces.dart';
@@ -19,6 +20,7 @@ import '../../../auth/domain/models/user.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../cubits/profile_cubit.dart';
 import '../widgets/achievement_badge.dart';
+import '../widgets/floating_translator_tile.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/week_chart.dart';
 
@@ -37,8 +39,10 @@ class ProfileScreen extends StatelessWidget {
 
   Future<void> _signOut(BuildContext context) async {
     final auth = context.read<AuthBloc>();
-    // os lembretes falam da ofensiva de quem saiu
+    final floating = context.read<FloatingTranslator>();
+    // os lembretes falam da ofensiva de quem saiu; a bolha usa a sessão dela
     await context.read<Reminders>().cancelAll();
+    await floating.stop();
     auth.add(const LogoutRequested());
   }
 
@@ -151,6 +155,7 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: const Text('Desligada, some do Início e dos lembretes.'),
                 ),
               ),
+              const FloatingTranslatorTile(),
               const SizedBox(height: Spaces.xl),
               OutlinedButton.icon(
                 onPressed: () => _signOut(context),

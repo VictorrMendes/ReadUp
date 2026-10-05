@@ -19,3 +19,6 @@ skills-lock.json
 .maestri
 # ajustes locais do compose (ex.: porta só em loopback no servidor)
 docker-compose.override.yml
+
+# anotações locais com exemplos de integração (podem conter chaves de API)
+integração.txt

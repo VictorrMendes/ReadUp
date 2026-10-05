@@ -26,12 +26,14 @@ void main() {
   late MockStatsRepository stats;
   late MockReminders reminders;
   late MockAuthBloc auth;
+  late MockFloatingTranslator floating;
 
   setUpAll(() => registerFallbackValue(const AuthStarted()));
   setUp(() {
     stats = MockStatsRepository();
     reminders = quietReminders();
     auth = MockAuthBloc();
+    floating = unsupportedFloating();
     when(() => auth.state).thenReturn(const AuthAuthenticated(onboardedUser));
     when(() => stats.summary()).thenAnswer((_) async => summaryWith());
     when(() => stats.daily()).thenAnswer((_) async => week);
@@ -56,6 +58,7 @@ void main() {
         reminders: reminders,
         authBloc: auth,
         streakHidden: streakHidden,
+        floatingTranslator: floating,
       ),
     );
     await tester.pumpAndSettle();
@@ -93,13 +96,14 @@ void main() {
     expect(find.textContaining('bloqueadas no aparelho'), findsOneWidget);
   });
 
-  testWidgets('sair cancela os lembretes e encerra a sessão', (tester) async {
+  testWidgets('sair cancela os lembretes, desliga a bolha e encerra a sessão', (tester) async {
     await pumpProfile(tester);
 
     await tester.tap(find.text('Sair'));
     await tester.pumpAndSettle();
 
     verify(reminders.cancelAll).called(1);
+    verify(floating.stop).called(1);
     verify(() => auth.add(const LogoutRequested())).called(1);
   });
 }

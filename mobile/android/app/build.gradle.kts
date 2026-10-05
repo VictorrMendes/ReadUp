@@ -69,4 +69,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // OCR da tradução flutuante, no aparelho (modelo pelo Google Play: APK menor)
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 }

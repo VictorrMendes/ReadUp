@@ -18,6 +18,7 @@ from app.reading.router import router as reading_router
 from app.stats.router import router as stats_router
 from app.users.router import router as users_router
 from app.vocabulary.router import router as vocabulary_router
+from app.vocabulary.screen import router as screen_router
 
 
 @asynccontextmanager
@@ -37,6 +38,7 @@ app.include_router(reading_router)
 app.include_router(goals_router)
 app.include_router(stats_router)
 app.include_router(vocabulary_router)
+app.include_router(screen_router)
 app.include_router(books_router)
 app.include_router(achievements_router)
 

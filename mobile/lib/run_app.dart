@@ -10,6 +10,7 @@ import 'build_config.dart';
 import 'core/core.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
+import 'core/services/floating_translator.dart';
 import 'core/services/reminders.dart';
 import 'core/services/speech.dart';
 import 'features/read/domain/repositories/books_repository.dart';
@@ -55,6 +56,7 @@ Future<void> runReadUp(BuildConfig config) async {
       vocabularyRepository: VocabularyRepository(httpHelper: httpHelper),
       speech: DeviceSpeech(),
       reminders: LocalReminders(),
+      floatingTranslator: NativeFloatingTranslator(apiUrl: config.apiUrl, tokens: tokenStorage),
       readerSettings: readerSettings,
       streakVisibility: streakVisibility,
     ),

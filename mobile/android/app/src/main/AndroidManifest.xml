@@ -1,6 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- a API: sem isto o APK de produção não acessa a rede (o Flutter só declara no debug) -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- tradução flutuante: bolha sobre outros apps, num serviço em primeiro plano -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="ReadUp"
         android:name="${applicationName}"
@@ -36,6 +42,26 @@
         <!-- lembrete diário agendado (flutter_local_notifications). Sem receptor de boot: o app
              reagenda os próximos 7 dias toda vez que o Início abre -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <!-- bolha da tradução flutuante (só o próprio app liga: exported=false) -->
+        <service
+            android:name=".FloatService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|mediaProjection">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Bolha de tradução sobre outros apps, ligada pela pessoa no Perfil" />
+        </service>
+        <!-- só pede ao sistema a permissão de capturar a tela (precisa de uma Activity) -->
+        <activity
+            android:name=".CaptureActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="app.readup.readup.capture"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <!-- modelo do OCR (ML Kit pelo Google Play) baixado já na instalação -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
