@@ -38,6 +38,7 @@ void main() {
     WidgetTester tester, {
     bool streakHidden = false,
     MockReminders? reminders,
+    MockFloatingTranslator? floating,
   }) async {
     // celular alto: o Início inteiro cabe na tela (toques e semântica alcançam todos os cartões)
     tester.view.physicalSize = const Size(1080, 4000);
@@ -50,6 +51,7 @@ void main() {
         articles: articles,
         streakHidden: streakHidden,
         reminders: reminders,
+        floatingTranslator: floating,
       ),
     );
     await tester.pumpAndSettle();
@@ -78,6 +80,26 @@ void main() {
     expect(find.text('Mil palavras'), findsOneWidget);
     expect(find.text('Continuar lendo'), findsOneWidget);
     expect(find.text('The science of sleep'), findsOneWidget);
+  });
+
+  testWidgets('Android: interruptor da tradução flutuante logo abaixo da meta', (tester) async {
+    stub(reading: article(progress: 40));
+    final floating = MockFloatingTranslator();
+    when(() => floating.supported).thenReturn(true);
+    when(floating.isRunning).thenAnswer((_) async => false);
+    await pumpHome(tester, floating: floating);
+
+    expect(find.widgetWithText(SwitchListTile, 'Tradução flutuante'), findsOneWidget);
+    final goal = tester.getTopLeft(find.text('Faltam 180 palavras para fechar a meta.')).dy;
+    final toggle = tester.getTopLeft(find.text('Tradução flutuante')).dy;
+    expect(toggle, greaterThan(goal));
+    expect(toggle, lessThan(tester.getTopLeft(find.text('Continuar lendo')).dy));
+  });
+
+  testWidgets('sem a bolha (iOS): nenhum interruptor no Início', (tester) async {
+    stub(reading: article(progress: 40));
+    await pumpHome(tester);
+    expect(find.text('Tradução flutuante'), findsNothing);
   });
 
   testWidgets('meta cumprida: chama dourada e "Ler mais um"', (tester) async {

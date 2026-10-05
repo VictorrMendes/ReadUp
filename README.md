@@ -24,7 +24,7 @@ readup/
 - **Lembrete diário**: notificação local (manhã, tarde ou noite), sem servidor, escolhida no onboarding ou no Perfil. A permissão só é pedida nessa escolha; o lembrete do dia sai quando a meta ou o mínimo da ofensiva já foi feito, e sair da conta cancela todos.
 - **PDFs privados**: envio de livros e documentos em PDF pelo usuário, processados em capítulos privados.
 - **Notícias**: agregação periódica de artigos de fontes em inglês simples (VOA Learning English e Wikinews — ambas as fontes estão congeladas/modo arquivo).
-- **Tradução flutuante (Android)**: bolha opcional sobre outros apps (mangás, HQs, sites). Tocar nela congela a tela, a pessoa marca o texto, o OCR do aparelho lê e o backend traduz; um botão envia o recorte para a IA quando o OCR não dá conta. Liga e desliga no Perfil e não conta para meta, ofensiva nem XP.
+- **Tradução flutuante (Android)**: bolha opcional sobre outros apps (mangás, HQs, sites). Tocar nela congela a tela, a pessoa marca o texto, o OCR do aparelho lê e o backend traduz; um botão envia o recorte para a IA quando o OCR não dá conta. Liga e desliga por um interruptor no Início e não conta para meta, ofensiva nem XP.
 - **Estatísticas no Perfil**: visão geral de palavras lidas, ofensiva, tempo de leitura e vocabulário acumulado.
 
 ## Variáveis de ambiente
@@ -148,7 +148,7 @@ produção usa HTTPS.
 
 ### Tradução flutuante
 
-Só no Android (o iOS não permite janelas sobre outros apps). Perfil → "Tradução flutuante" liga um
+Só no Android (o iOS não permite janelas sobre outros apps). Início → interruptor "Tradução flutuante" (abaixo da meta) liga um
 serviço nativo (`android/app/src/main/kotlin/.../FloatService.kt`) com a bolha e uma notificação
 com "Desligar".
 
