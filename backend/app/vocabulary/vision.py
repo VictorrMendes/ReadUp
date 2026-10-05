@@ -7,7 +7,7 @@ from urllib.request import Request, urlopen
 
 # Host fixo; a chave só vem do ambiente do servidor (nunca do app, que pode ser descompilado).
 NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-DEFAULT_MODEL = "deepseek-ai/deepseek-v4.1-flash"
+DEFAULT_MODEL = "meta/llama-3.2-11b-vision-instruct"
 TIMEOUT_SECONDS = 30
 MAX_RESPONSE_BYTES = 64_000
 MAX_TEXT_LENGTH = 1_000
