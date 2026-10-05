@@ -37,7 +37,9 @@ class ScreenCapture(
     init {
         val size = screenSize(context)
         val manager = context.getSystemService(MediaProjectionManager::class.java)
+        // null quando o aceite já foi usado ou expirou: o FloatService avisa a pessoa
         projection = manager.getMediaProjection(resultCode, data)
+            ?: throw IllegalStateException("Captura da tela não liberada")
         // Android 14: o callback precisa vir antes do createVirtualDisplay
         projection.registerCallback(
             object : MediaProjection.Callback() {
@@ -65,7 +67,12 @@ class ScreenCapture(
             reader.surface,
             null,
             handler,
-        )
+        ) ?: run {
+            released = true // o onStop disparado pelo stop() não deve mexer no display inexistente
+            reader.close()
+            projection.stop()
+            throw IllegalStateException("Espelho da tela não criado")
+        }
     }
 
     /** O último quadro da tela; null se nenhum chegou ainda. */
