@@ -39,7 +39,7 @@ Configuradas no arquivo `.env` na raiz do projeto (baseado em `.env.example`):
 | `NEWS_FETCH_HOURS` | Não | Intervalo em horas entre coletas automáticas de notícias na API (padrão `6`; use `0` para desativar). |
 | `NEWS_CONTACT` | Não | URL ou e-mail de contato do dono do app no `User-Agent` para a política da Wikimedia (evita throttling para 1 página a cada 7 s no Wikinews). Nunca use o e-mail de um usuário. |
 | `NVIDIA_API_KEY` | Não | Chave da NVIDIA para o botão "Traduzir com IA" da tradução flutuante. Fica só no servidor; a conta aceita 40 requisições/min, divididas entre todos os usuários (o backend respeita esse limite e mais 20 por usuário/dia). Sem ela, a bolha usa só o OCR do aparelho. |
-| `NVIDIA_VISION_MODEL` | Não | Modelo de visão usado pela IA (padrão `deepseek-ai/deepseek-v4.1-flash`). |
+| `NVIDIA_VISION_MODEL` | Não | Modelo de visão usado pela IA (padrão `meta/llama-3.2-11b-vision-instruct`). |
 | `PDF_STORAGE_DIR` | Não | Diretório de armazenamento de PDFs. Configurado no `docker-compose.yml` como `/app/storage/pdfs` (montado a partir de `./storage/pdfs` no host). |
 
 ## Rodando
