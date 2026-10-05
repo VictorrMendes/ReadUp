@@ -40,20 +40,25 @@ def storage_dir() -> Path:
 
 
 class UploadSizeLimit:
-    """Corta o upload de POST /books assim que o corpo passa do limite, contando os bytes que
-    chegam (não confia no Content-Length). Sem isso o multipart inteiro seria recebido e gravado
-    em arquivo temporário antes de o endpoint rodar."""
+    """Corta o upload de POST /books (e o recorte da tradução flutuante) assim que o corpo passa
+    do limite, contando os bytes que chegam (não confia no Content-Length). Sem isso o multipart
+    inteiro seria recebido e gravado em arquivo temporário antes de o endpoint rodar."""
 
     # folga para os cabeçalhos do multipart; o limite exato do PDF é conferido no endpoint
     MAX_BODY_BYTES = MAX_PDF_BYTES + 64 * 1024
+    # o recorte da tradução flutuante vem em JSON (base64): mesmo corte antes de ler tudo
+    LIMITS = {"/books": MAX_BODY_BYTES, "/vocabulary/translate-image": 2 * 1024 * 1024}
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if not (
-            scope["type"] == "http" and scope["method"] == "POST" and scope["path"] == "/books"
-        ):
+        limit = (
+            self.LIMITS.get(scope["path"])
+            if scope["type"] == "http" and scope["method"] == "POST"
+            else None
+        )
+        if limit is None:
             await self.app(scope, receive, send)
             return
         received = 0
@@ -62,7 +67,7 @@ class UploadSizeLimit:
             nonlocal received
             message = await receive()
             received += len(message.get("body", b""))
-            if received > self.MAX_BODY_BYTES:
+            if received > limit:
                 # o FastAPI repassa HTTPException levantada durante a leitura do corpo
                 raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, detail=TOO_LARGE)
             return message

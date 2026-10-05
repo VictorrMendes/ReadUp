@@ -25,6 +25,8 @@ services:
       PDF_STORAGE_DIR: /app/storage/pdfs
       NEWS_FETCH_HOURS: ${NEWS_FETCH_HOURS:-6}
       NEWS_CONTACT: ${NEWS_CONTACT:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      NVIDIA_VISION_MODEL: ${NVIDIA_VISION_MODEL:-}
     volumes:
       - ./storage/pdfs:/app/storage/pdfs
     ports:

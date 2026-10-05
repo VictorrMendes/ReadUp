@@ -16,6 +16,8 @@ class DailyStats(Base):
         CheckConstraint("words_reviewed >= 0", name="words_reviewed_non_negative"),
         CheckConstraint("review_xp >= 0", name="review_xp_non_negative"),
         CheckConstraint("sentences_translated >= 0", name="sentences_translated_non_negative"),
+        CheckConstraint("screen_translations >= 0", name="screen_translations_non_negative"),
+        CheckConstraint("ai_translations >= 0", name="ai_translations_non_negative"),
     )
 
     user_id: Mapped[int] = mapped_column(
@@ -34,3 +36,6 @@ class DailyStats(Base):
     review_xp: Mapped[int] = mapped_column(Integer, server_default="0")
     # traduções de frase que foram ao serviço externo (as do cache não contam): limite diário
     sentences_translated: Mapped[int] = mapped_column(Integer, server_default="0")
+    # tradução flutuante (texto de fora do app): idas ao MyMemory e à IA, cada uma com seu limite
+    screen_translations: Mapped[int] = mapped_column(Integer, server_default="0")
+    ai_translations: Mapped[int] = mapped_column(Integer, server_default="0")
