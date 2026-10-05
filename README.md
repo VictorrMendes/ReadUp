@@ -24,6 +24,7 @@ readup/
 - **Lembrete diário**: notificação local (manhã, tarde ou noite), sem servidor, escolhida no onboarding ou no Perfil. A permissão só é pedida nessa escolha; o lembrete do dia sai quando a meta ou o mínimo da ofensiva já foi feito, e sair da conta cancela todos.
 - **PDFs privados**: envio de livros e documentos em PDF pelo usuário, processados em capítulos privados.
 - **Notícias**: agregação periódica de artigos de fontes em inglês simples (VOA Learning English e Wikinews — ambas as fontes estão congeladas/modo arquivo).
+- **Tradução flutuante (Android)**: bolha opcional sobre outros apps (mangás, HQs, sites). Tocar nela congela a tela, a pessoa marca o texto, o OCR do aparelho lê e o backend traduz; um botão envia o recorte para a IA quando o OCR não dá conta. Liga e desliga no Perfil e não conta para meta, ofensiva nem XP.
 - **Estatísticas no Perfil**: visão geral de palavras lidas, ofensiva, tempo de leitura e vocabulário acumulado.
 
 ## Variáveis de ambiente
@@ -144,6 +145,24 @@ Configuração (uma vez, em *Settings* do repositório):
 HTTP sem TLS só é aceito no build de debug e no APK de homolog do Android (placeholder
 `usesCleartextTraffic` em `android/app/build.gradle.kts`) e, no iOS, só para a rede local;
 produção usa HTTPS.
+
+### Tradução flutuante
+
+Só no Android (o iOS não permite janelas sobre outros apps). Perfil → "Tradução flutuante" liga um
+serviço nativo (`android/app/src/main/kotlin/.../FloatService.kt`) com a bolha e uma notificação
+com "Desligar".
+
+- **Permissões**: "Aparecer sobre outros apps" (o app leva às configurações do sistema) e, no
+  primeiro toque na bolha, a captura da tela, que vale enquanto a bolha estiver ligada. O Android
+  mostra o aviso de transmissão durante a captura.
+- **Fluxo**: tocar na bolha → a tela congela → arrastar sobre o texto → OCR no aparelho (ML Kit,
+  modelo baixado pelo Google Play) → `POST /vocabulary/translate-text` (até 450 caracteres, 60 por
+  dia). "Traduzir com IA" pede um aceite na primeira vez e envia o recorte reduzido (até 1024 px,
+  JPEG) para `POST /vocabulary/translate-image` (20 por pessoa/dia e 40/min para a conta toda).
+- **Sessão**: o token vai para o serviço só na memória; sair da conta desliga a bolha, e um 401
+  desliga com o aviso para entrar de novo.
+- **Limites conhecidos**: apps que bloqueiam captura (bancos, streaming) aparecem pretos; girar a
+  tela com a bolha ligada desalinha o recorte até religá-la.
 
 ### Testes e validações do mobile
 
