@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:readup/features/profile/presentation/widgets/floating_translator_tile.dart';
+import 'package:readup/shared/presentation/widgets/floating_translator_tile.dart';
 
-import '../../../../fakes/harness.dart';
-import '../../../../fakes/mocks.dart';
+import '../../../fakes/harness.dart';
+import '../../../fakes/mocks.dart';
 
 void main() {
   late MockFloatingTranslator translator;

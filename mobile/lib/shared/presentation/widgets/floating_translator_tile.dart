@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/core.dart';
-import '../../../../core/services/floating_translator.dart';
+import '../../../core/core.dart';
+import '../../../core/services/floating_translator.dart';
 import '../cubits/floating_translator_cubit.dart';
 
-/// Liga e desliga a bolha de tradução. Só aparece onde ela existe (Android).
+/// Interruptor da bolha de tradução (Início). Só aparece onde ela existe (Android).
 class FloatingTranslatorTile extends StatelessWidget {
   const FloatingTranslatorTile({super.key});
 
@@ -98,10 +98,7 @@ class _TileState extends State<_Tile> {
                   unawaited(context.read<FloatingTranslatorCubit>().toggle(on));
                 },
           title: const Text('Tradução flutuante'),
-          subtitle: const Text(
-            'Uma bolha sobre outros apps traduz o trecho que você marcar em mangás, HQs e '
-            'sites. Não conta para a meta.',
-          ),
+          subtitle: const Text('Bolha sobre outros apps para traduzir mangás, HQs e sites.'),
         ),
       ),
     );

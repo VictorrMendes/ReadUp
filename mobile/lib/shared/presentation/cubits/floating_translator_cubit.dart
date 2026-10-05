@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/services/floating_translator.dart';
+import '../../../core/services/floating_translator.dart';
 
 class FloatingTranslatorState extends Equatable {
   const FloatingTranslatorState({
@@ -32,7 +32,7 @@ class FloatingTranslatorState extends Equatable {
   List<Object?> get props => [on, busy, askPermission, failed];
 }
 
-/// Chave "Tradução flutuante" do Perfil. O estado vem do serviço nativo (a bolha pode ter sido
+/// Interruptor "Tradução flutuante" do Início. O estado vem do serviço nativo (a bolha pode ter sido
 /// desligada pela notificação ou pelo sistema), não de uma preferência guardada.
 class FloatingTranslatorCubit extends Cubit<FloatingTranslatorState> {
   FloatingTranslatorCubit({required this._translator}) : super(const FloatingTranslatorState());

@@ -20,7 +20,6 @@ import '../../../auth/domain/models/user.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../cubits/profile_cubit.dart';
 import '../widgets/achievement_badge.dart';
-import '../widgets/floating_translator_tile.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/week_chart.dart';
 
@@ -155,7 +154,6 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: const Text('Desligada, some do Início e dos lembretes.'),
                 ),
               ),
-              const FloatingTranslatorTile(),
               const SizedBox(height: Spaces.xl),
               OutlinedButton.icon(
                 onPressed: () => _signOut(context),

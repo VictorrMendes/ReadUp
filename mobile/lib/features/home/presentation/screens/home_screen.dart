@@ -5,12 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/core.dart';
+import '../../../../core/services/floating_translator.dart';
 import '../../../../core/services/reminders.dart';
 import '../../../../core/routes/routes_path.dart';
 import '../../../../design_system/readup_colors.dart';
 import '../../../../design_system/spaces.dart';
 import '../../../../shared/presentation/cubits/streak_visibility_cubit.dart';
 import '../../../../shared/presentation/widgets/enter_animation.dart';
+import '../../../../shared/presentation/widgets/floating_translator_tile.dart';
 import '../../../../shared/presentation/widgets/reading_card.dart';
 import '../../../../shared/presentation/widgets/skeleton.dart';
 import '../../../auth/domain/models/user.dart';
@@ -145,6 +147,8 @@ class _HomeContent extends StatelessWidget {
           ),
           onAction: goTo,
         ),
+      // interruptor da bolha logo abaixo da meta, sem rolar (só no Android)
+      if (context.read<FloatingTranslator>().supported) const FloatingTranslatorTile(),
       if (data.summary case final summary? when streakHidden == false)
         StreakCard(summary: summary, goalMetToday: data.goal.completed, week: data.week),
       if (next != null) NextAchievementCard(achievement: next),
