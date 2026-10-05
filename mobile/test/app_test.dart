@@ -25,6 +25,7 @@ void main() {
         vocabularyRepository: MockVocabularyRepository(),
         speech: MockSpeech(),
         reminders: MockReminders(),
+        floatingTranslator: MockFloatingTranslator(),
         readerSettings: MockReaderSettingsCubit(),
         streakVisibility: MockStreakVisibilityCubit(),
       ),

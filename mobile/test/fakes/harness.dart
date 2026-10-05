@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:readup/design_system/themes.dart';
 import 'package:readup/features/auth/presentation/blocs/auth_bloc.dart';
+import 'package:readup/core/services/floating_translator.dart';
 import 'package:readup/core/services/reminders.dart';
 import 'package:readup/core/services/speech.dart';
 import 'package:readup/features/read/domain/repositories/books_repository.dart';
@@ -31,6 +32,7 @@ Widget wrapApp(
   VocabularyRepository? vocabulary,
   Speech? speech,
   Reminders? reminders,
+  FloatingTranslator? floatingTranslator,
   ReaderSettings readerSettings = const ReaderSettings(),
   bool? streakHidden = false,
   Map<String, WidgetBuilder> routes = const {},
@@ -49,6 +51,9 @@ Widget wrapApp(
       ),
       RepositoryProvider<Speech>.value(value: speech ?? MockSpeech()),
       RepositoryProvider<Reminders>.value(value: reminders ?? quietReminders()),
+      RepositoryProvider<FloatingTranslator>.value(
+        value: floatingTranslator ?? unsupportedFloating(),
+      ),
       RepositoryProvider<BooksRepository>.value(value: books ?? _pendingBooks()),
       RepositoryProvider<PreferencesRepository>.value(
         value: preferences ?? MockPreferencesRepository(),
@@ -79,6 +84,14 @@ MockReminders quietReminders() {
   ).thenAnswer((_) async {});
   when(reminders.cancelAll).thenAnswer((_) async {});
   return reminders;
+}
+
+/// Aparelho sem a bolha (como o iOS): a opção some do Perfil.
+MockFloatingTranslator unsupportedFloating() {
+  final translator = MockFloatingTranslator();
+  when(() => translator.supported).thenReturn(false);
+  when(translator.stop).thenAnswer((_) async {});
+  return translator;
 }
 
 // chamadas que nunca terminam: a tela fica no carregamento (testes que não olham os dados)

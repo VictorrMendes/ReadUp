@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:readup/core/core.dart';
 import 'package:readup/features/auth/domain/repositories/auth_repository.dart';
 import 'package:readup/features/auth/presentation/blocs/auth_bloc.dart';
+import 'package:readup/core/services/floating_translator.dart';
 import 'package:readup/core/services/reminders.dart';
 import 'package:readup/core/services/speech.dart';
 import 'package:readup/features/read/domain/repositories/books_repository.dart';
@@ -34,6 +35,8 @@ class MockVocabularyRepository extends Mock implements VocabularyRepository {}
 class MockSpeech extends Mock implements Speech {}
 
 class MockReminders extends Mock implements Reminders {}
+
+class MockFloatingTranslator extends Mock implements FloatingTranslator {}
 
 class MockReaderSettingsCubit extends MockCubit<ReaderSettings> implements ReaderSettingsCubit {}
 

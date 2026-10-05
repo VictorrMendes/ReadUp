@@ -7,6 +7,7 @@ import 'design_system/themes.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
 import 'features/auth/presentation/screens/auth_gate.dart';
+import 'core/services/floating_translator.dart';
 import 'core/services/reminders.dart';
 import 'core/services/speech.dart';
 import 'features/read/domain/repositories/books_repository.dart';
@@ -32,6 +33,7 @@ class ReadUpApp extends StatelessWidget {
     required this.vocabularyRepository,
     required this.speech,
     required this.reminders,
+    required this.floatingTranslator,
     required this.streakVisibility,
     required this.readerSettings,
   });
@@ -46,6 +48,7 @@ class ReadUpApp extends StatelessWidget {
   final VocabularyRepository vocabularyRepository;
   final Speech speech;
   final Reminders reminders;
+  final FloatingTranslator floatingTranslator;
   final ReaderSettingsCubit readerSettings;
   final StreakVisibilityCubit streakVisibility;
 
@@ -62,6 +65,7 @@ class ReadUpApp extends StatelessWidget {
         RepositoryProvider.value(value: vocabularyRepository),
         RepositoryProvider.value(value: speech),
         RepositoryProvider.value(value: reminders),
+        RepositoryProvider.value(value: floatingTranslator),
       ],
       child: MultiBlocProvider(
         providers: [
