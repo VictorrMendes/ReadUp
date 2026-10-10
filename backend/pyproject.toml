@@ -6,15 +6,15 @@ dependencies = [
     "alembic>=1.20.0",
     "argon2-cffi>=25.1.0",
     "defusedxml>=0.7.1",
-    "fastapi>=0.141.1",
+    "fastapi>=0.142.4",
     "psycopg[binary]>=3.3.6",
     "pydantic[email]>=2.13.5",
-    "pyjwt>=2.15.0",
+    "pyjwt>=2.15.1",
     "pypdf>=6.19.0",
-    "pypdfium2>=5.0",
+    "pypdfium2>=5.14.0",
     "python-multipart>=0.0.32",
-    "sqlalchemy>=2.1.1",
-    "tzdata>=2026.4",
+    "sqlalchemy>=2.1.4",
+    "tzdata>=2026.5",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -39,7 +39,7 @@ ignore_missing_imports = true
 [dependency-groups]
 dev = [
     "httpx2>=2.13.1",
-    "mypy>=2.3.1",
+    "mypy>=2.4.0",
     "pytest>=9.1.1",
-    "ruff>=0.16.9",
+    "ruff>=0.16.10",
 ]
