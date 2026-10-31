@@ -3,18 +3,18 @@ name = "readup-backend"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
-    "alembic>=1.20.0",
+    "alembic>=1.20.1",
     "argon2-cffi>=25.1.0",
     "defusedxml>=0.7.1",
-    "fastapi>=0.141.1",
+    "fastapi>=0.162.0",
     "psycopg[binary]>=3.3.6",
     "pydantic[email]>=2.13.5",
-    "pyjwt>=2.15.0",
-    "pypdf>=6.19.0",
-    "pypdfium2>=5.0",
+    "pyjwt>=2.15.1",
+    "pypdf>=6.21.4",
+    "pypdfium2>=5.14.0",
     "python-multipart>=0.0.32",
-    "sqlalchemy>=2.1.1",
-    "tzdata>=2026.4",
+    "sqlalchemy>=2.1.6",
+    "tzdata>=2026.6",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -38,8 +38,8 @@ ignore_missing_imports = true
 
 [dependency-groups]
 dev = [
-    "httpx2>=2.13.1",
-    "mypy>=2.3.1",
-    "pytest>=9.1.1",
-    "ruff>=0.16.9",
+    "httpx2>=2.16.0",
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
 ]
